@@ -1,785 +1,459 @@
 <!DOCTYPE html>
-/*  */
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>MRI Proforma Unified Dashboard</title>
-    <script>
-      (function() {
-          const currentSavedTheme = localStorage.getItem('theme');
-          const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          let themeToApply = 'light';
-          if (currentSavedTheme === 'dark' || (!currentSavedTheme && prefersDarkScheme)) themeToApply = 'dark';
-          document.documentElement.setAttribute('data-theme', themeToApply);
-      })();
-    </script>
-    <style>
-        /* --- BASE VARIABLES & THEMING --- */
-        :root { 
-            --bg: #f4f7fb; --surface: #ffffff; --text: #2d3748; --primary: #3182ce; --border: #e2e8f0; --hover: #ebf8ff;
-            --row-height: 45px;
-            --table-width: 100%;
-            --row-count: 52; /* Dynamically updated for print math */
-        }
-        [data-theme="dark"] { --bg: #1a202c; --surface: #2d3748; --text: #e2e8f0; --primary: #63b3ed; --border: #4a5568; --hover: #2c5282;}
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; transition: 0.3s; }
-        
-        /* --- NAVIGATION --- */
-        .nav-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
-        .nav-btn { padding: 12px 20px; border: none; border-radius: 8px; background: var(--surface); color: var(--text); font-weight: bold; cursor: pointer; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: 0.2s; }
-        .nav-btn:hover, .nav-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
-        .nav-btn.search-btn { background: #ed8936; color: white; border-color: #dd6b20; margin-left: auto; }
-        .nav-btn.print-btn { background: #38a169; color: white; border-color: #2f855a; }
-        .nav-btn.print-btn:hover { background: #276749; }
-        
-        .theme-btn { background: var(--surface); border: 1px solid var(--border); cursor: pointer; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; transition: 0.3s; margin-left: 5px; }
-        .theme-btn:hover { transform: scale(1.05); border-color: var(--primary); }
-        .sun-icon, .moon-icon { position: absolute; width: 20px; height: 20px; transition: 0.6s; }
-        .sun-icon { opacity: 1; transform: rotate(0deg) scale(1); color: #ecc94b; }
-        .moon-icon { opacity: 0; transform: rotate(90deg) scale(0.5); color: #ffffff; }
-        [data-theme="dark"] .sun-icon { opacity: 0; transform: rotate(-90deg) scale(0.5); color: #e53e3e; }
-        [data-theme="dark"] .moon-icon { opacity: 1; transform: rotate(0deg) scale(1); }
-        
-        /* --- VIEW CONTROLS (SLIDERS & RESOLUTION) --- */
-        .view-controls { display: flex; align-items: center; gap: 12px; background: var(--surface); padding: 8px 15px; border-radius: 8px; border: 1px solid var(--border); font-weight: bold; margin-left: auto; }
-        .view-controls input[type="range"] { width: 60px; cursor: pointer; }
-        .view-controls select { border: none; background: transparent; font-weight: bold; color: var(--primary); outline: none; cursor: pointer; font-size: 1em; }
-        .divider { width: 1px; height: 20px; background: var(--border); margin: 0 5px; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MRI Proforma Decoder</title>
 
-        /* --- HEADERS --- */
-        .scanner-header { background: var(--surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; }
-        .scanner-header h2 { margin: 0 0 10px 0; color: var(--primary); }
-        .scanner-header p { margin: 4px 0; font-size: 0.9em; font-weight: bold; }
-
-        /* --- OVERLAY CALENDAR GRID --- */
-        table { width: var(--table-width); margin: 0 auto; border-collapse: collapse; background: var(--surface); table-layout: fixed; transition: width 0.1s; }
-        th { background: var(--hover); position: sticky; top: 0; z-index: 50; text-align: center; padding: 8px; border: 1px solid var(--border); }
-        
-        /* SPECIFIC WIDTH ALLOCATIONS */
-        th.time-header { width: 65px; text-align: left; }
-        th:not(.time-header) { width: calc((100% - 65px) / 7); }
-
-        tr { height: var(--row-height); transition: height 0.1s; } 
-        td { border: 1px solid var(--border); padding: 0; position: relative; vertical-align: top; }
-        .grid-cell { cursor: pointer; transition: 0.2s; }
-        .grid-cell:hover { background: var(--hover); }
-        
-        /* Top-Left Justified Time Column */
-        .time-col { font-weight: bold; background: var(--hover); text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
-        
-        /* --- DYNAMIC SLOT EVENTS --- */
-        .slot-event { 
-            position: absolute; border-radius: 3px; padding: 4px 6px; box-sizing: border-box; 
-            overflow: hidden; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: pointer;
-            text-align: left; display: flex; flex-direction: column; border: 1px solid rgba(0,0,0,0.1);
-        }
-        .slot-event:hover { 
-            z-index: 1000 !important; 
-            box-shadow: 0 6px 15px rgba(0,0,0,0.4); 
-            min-height: max-content !important; 
-            overflow: visible;
-        }
-
-        .time-badge { 
-            display: inline-block; width: fit-content; align-self: flex-start;
-            background: rgba(0, 0, 0, 0.75); color: #ffffff !important; 
-            padding: 1px 4px; 
-            border-radius: 3px 0 4px 0; 
-            font-size: 0.75em; font-weight: normal; 
-            font-family: 'Arial Narrow', 'Helvetica Condensed', sans-serif; font-stretch: condensed;
-            letter-spacing: -0.4px; 
-            margin: -4px 0 2px -6px; 
-            line-height: 1.1; box-shadow: 1px 1px 2px rgba(0,0,0,0.15);
-            white-space: nowrap;
-        }
-
-        .slot-event.short-slot {
-            flex-direction: row; align-items: center; padding: 2px 4px; gap: 4px;
-        }
-        .slot-event.short-slot .time-badge {
-            margin: -2px 0 -2px -4px; 
-            padding: 1px 3px; font-size: 0.7em;
-        }
-        .slot-event.short-slot > .slot-act {
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;
-        }
-        .slot-event.short-slot > .slot-note { display: none; }
-        
-        .slot-event.short-slot:hover {
-            flex-direction: column; align-items: flex-start; gap: 0; padding: 4px 6px;
-        }
-        .slot-event.short-slot:hover .time-badge { 
-            margin: -4px 0 2px -6px; padding: 1px 4px; font-size: 0.75em; 
-        }
-
-        /* --- MODAL --- */
-        .modal-overlay { display: none; position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;}
-        .modal { background: var(--surface); padding: 30px; border-radius: 12px; width: 100%; max-width: 550px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-        .modal h3 { margin-top: 0; border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
-        
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9em; }
-        .form-group select, .form-group input[type="text"], .form-group textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; background: var(--bg); color: var(--text); }
-        
-        .format-toolbar { display: flex; gap: 5px; margin-bottom: 5px; align-items: center; background: var(--hover); padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border); }
-        .format-toolbar button { background: var(--surface); border: 1px solid var(--border); cursor: pointer; padding: 4px 10px; border-radius: 4px; font-weight: bold; }
-        .format-toolbar button.active { background: var(--primary); color: white; border-color: var(--primary); }
-        .format-toolbar input[type="color"] { border: none; width: 30px; height: 26px; padding: 0; cursor: pointer; background: none; }
-        .format-toolbar select { padding: 4px; width: auto; border: 1px solid var(--border); border-radius: 4px; }
-        
-        .btn-row { display: flex; gap: 10px; margin-top: 20px; }
-        .btn-primary { background: var(--primary); color: white; flex: 1; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s;}
-        .btn-cancel { background: #a0aec0; color: white; flex: 1; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        
-        .warning-banner { background: #feebc8; color: #c05621; padding: 15px; border-radius: 8px; border-left: 5px solid #ed8936; margin-bottom: 20px; display: none; font-weight: bold; }
-
-        /* =========================================
-           A4 PORTRAIT PRINT OPTIMIZATION
-           ========================================= */
-        @media print {
-            @page { size: A4 portrait; margin: 5mm; }
-            
-            /* Reset body to fit exactly one page safely */
-            html, body { 
-                height: 100vh !important; 
-                width: 100vw !important; 
-                margin: 0 !important; 
-                padding: 0 !important; 
-                background: white !important; 
-                color: black !important; 
-                overflow: hidden !important; 
-            }
-            
-            .nav-bar, #monitoringWarning, .modal-overlay, .view-controls, .print-btn, .search-btn, .theme-btn { display: none !important; }
-            
-            /* Force header to be tiny */
-            .scanner-header { height: 4vh !important; border: none !important; padding: 0 !important; margin: 0 0 1mm 0 !important; text-align: center; }
-            .scanner-header h2 { font-size: 14pt !important; margin: 0 !important; line-height: 1.1 !important; }
-            .scanner-header p { font-size: 9pt !important; margin: 0 !important; line-height: 1.1 !important; }
-            
-            /* Allow table to flex to the remaining space perfectly */
-            #gridContainer { height: auto !important; max-height: none !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; }
-            
-            /* HEIGHT GUARANTEE: Dropped to 240mm (well under 297mm A4 limit) to completely prevent spilling to page 2 */
-            table { width: 100% !important; height: 260mm !important; max-height: 260mm !important; table-layout: fixed; border-collapse: collapse; margin: 0 !important; border: 2px solid #000 !important; }
-            tr { height: calc(260mm / var(--row-count)) !important; overflow: hidden !important; }
-            
-            /* Print Column Width Allocations */
-            th.time-header { width: 35px !important; }
-            th:not(.time-header) { width: calc((100% - 35px) / 7) !important; }
-            
-            th { position: static !important; font-size: 8.0pt !important; padding: 1px !important; background-color: #f0f0f0 !important; color: #000 !important; height: 4mm !important; border: 1px solid #000 !important; }
-            td { border: 1px solid #000 !important; padding: 0 !important; vertical-align: top !important; box-sizing: border-box !important;}
-            
-            /* Narrow, Top-Left Justified Time Column for Print */
-            .time-col { 
-                background-color: #f0f0f0 !important; 
-                color: #000 !important; 
-                font-size: 8pt !important; 
-                border: 1px solid #000 !important; 
-                vertical-align: top !important; 
-                padding: 1px 3px !important; 
-                text-align: left !important; 
-                line-height: 1 !important;
-            }
-            
-            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
-            
-            /* Slot Event Formatting */
-            .slot-event { box-shadow: none !important; border: 1px solid rgba(0,0,0,0.8) !important; padding: 1px 2px !important; box-sizing: border-box !important;}
-            .time-badge { display: none !important; } /* Hidden entirely on print to save space */
-            
-            /* DROPPED FONTS TO 8.0pt / 8pt TO ACCOMMODATE SMALLER 240mm OVERALL HEIGHT */
-            .slot-event span.slot-act { font-size: 8.0pt !important; font-weight: bold !important; line-height: 1 !important; white-space: normal !important; display: block; margin-bottom: 1px; }
-            .slot-event div.slot-note { font-size: 8pt !important; font-weight: normal !important; display: block !important; line-height: 1 !important; margin-top: 0 !important; }
-            
-            /* Compact small events */
-            .slot-event.short-slot { flex-direction: row !important; white-space: nowrap !important; align-items: center; }
-            .slot-event.short-slot > .slot-note { display: none !important; }
-            .slot-event.short-slot span.slot-act { white-space: nowrap !important; }
-        }
-    </style>
-</head>
-<body>
-
-    <!-- --- NAVIGATION BAR --- -->
-    <div class="nav-bar" id="navBar">
-        <button class="nav-btn" onclick="loadScanner('HM1')">HM1</button>
-        <button class="nav-btn" onclick="loadScanner('HM2')">HM2</button>
-        <button class="nav-btn" onclick="loadScanner('HM3')">HM3</button>
-        <button class="nav-btn" onclick="loadScanner('HM4')">HM4</button>
-        <button class="nav-btn" onclick="loadScanner('NM1')">NM1</button>
-        <button class="nav-btn" onclick="loadScanner('NM2')">NM2</button>
-        <button class="nav-btn" onclick="loadScanner('NM3')">NM3</button>
-        <button class="nav-btn" onclick="loadScanner('WM')">WM</button>
-        
-        <!-- Size Sliders & Resolution Controls -->
-        <div class="view-controls">
-            <div title="Adjust Row Height" style="display:flex; align-items:center; gap:5px;">
-                ↕️ <input type="range" id="rowHeightSlider" min="22" max="60" value="45" oninput="updateGridSizes()">
-            </div>
-            <div title="Adjust Column Width" style="display:flex; align-items:center; gap:5px;">
-                ↔️ <input type="range" id="colWidthSlider" min="50" max="100" value="100" oninput="updateGridSizes()">
-            </div>
-            <div class="divider"></div>
-            <div>
-                Res:
-                <select id="resSelect" onchange="renderGrid()">
-                    <option value="5">5 Mins</option>
-                    <option value="10">10 Mins</option>
-                    <option value="15" selected>15 Mins</option>
-                    <option value="30">30 Mins</option>
-                    <option value="60">1 Hour</option>
-                </select>
-            </div>
-        </div>
-        
-        <button class="nav-btn search-btn" onclick="openSearch()">🔍 Summary Search</button>
-        <button class="nav-btn print-btn" onclick="printProforma()">🖨️ Print A4</button>
-        
-        <button type="button" class="theme-btn" onclick="toggleTheme()" title="Toggle Dark Mode">
-            <svg class="sun-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-            <svg class="moon-icon" viewBox="0 0 24 24" fill="currentColor"><mask id="moon-mask"><rect x="0" y="0" width="24" height="24" fill="white" /><circle cx="15.5" cy="14.5" r="2.5" fill="black" /><circle cx="8.0" cy="9.5" r="1.8" fill="black" /></mask><circle cx="12" cy="12" r="10" mask="url(#moon-mask)" /></svg>
-        </button>
-    </div>
-
-    <div id="headerArea" class="scanner-header" style="display:none;"></div>
-    <div id="monitoringWarning" class="warning-banner">⚠️ PATIENT MONITORING REQUIRED: Showing grouped results for Pacemakers, GA, and Cardiac Stress.</div>
-
-    <div id="gridContainer" style="overflow-x: auto; max-height: 75vh;">
-        <table id="scheduleTable">
-            <thead>
-                <tr>
-                    <!-- ADDED CLASS FOR TARGETING -->
-                    <th class="time-header">Time</th><th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th><th>Saturday</th><th>Sunday</th>
-                </tr>
-            </thead>
-            <tbody id="scheduleBody"></tbody>
-        </table>
-    </div>
-
-    <!-- --- BOOK/EDIT MODAL --- -->
-    <div class="modal-overlay" id="editModal">
-        <div class="modal">
-            <h3 id="modalTitle">Book/Edit Slot</h3>
-            <form id="slotForm" data-force="false">
-                <div style="display:flex; gap:15px;">
-                    <div class="form-group" style="flex:1;"><input type="text" id="mScanner" readonly style="background:var(--border);"></div>
-                    <div class="form-group" style="flex:1;"><input type="text" id="mDay" readonly style="background:var(--border);"></div>
-                </div>
-                
-                <div class="form-group" id="trackGroup" style="display:none;">
-                    <label>Pathway / Track</label>
-                    <select id="mTrack"></select>
-                </div>
-
-                <div style="display:flex; gap:15px;">
-                    <div class="form-group" style="flex:1;"><label>Start Time</label><select id="mStart"></select></div>
-                    <div class="form-group" style="flex:1;"><label>End Time</label><select id="mEnd"></select></div>
-                </div>
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label>Load Preset Activity</label>
-                    <select id="mPreset" onchange="applyPreset()"><option value="" disabled selected>Loading activities...</option></select>
-                </div>
-                <div class="form-group">
-                    <label>Activity Text (Line 1)</label>
-                    <div class="format-toolbar">
-                        <input type="color" id="fActColor" onchange="updateFormat('act','color',this.value)">
-                        <select id="fActSize" onchange="updateFormat('act','size',this.value)">
-                            <option value="10">10pt</option><option value="12">12pt</option><option value="14">14pt</option><option value="16">16pt</option><option value="18">18pt</option>
-                        </select>
-                        <button type="button" id="btnActBold" onclick="toggleFormat('act','bold')">B</button>
-                        <button type="button" id="btnActItalic" onclick="toggleFormat('act','italic')">I</button>
-                    </div>
-                    <input type="text" id="mActivityText" placeholder="e.g. PPM (Pacemakers)">
-                </div>
-                <div class="form-group">
-                    <label>Slot Note (Line 2+)</label>
-                    <div class="format-toolbar">
-                        <input type="color" id="fNoteColor" onchange="updateFormat('note','color',this.value)">
-                        <select id="fNoteSize" onchange="updateFormat('note','size',this.value)">
-                            <option value="10">10pt</option><option value="12">12pt</option><option value="14">14pt</option><option value="16">16pt</option><option value="18">18pt</option>
-                        </select>
-                        <button type="button" id="btnNoteBold" onclick="toggleFormat('note','bold')">B</button>
-                        <button type="button" id="btnNoteItalic" onclick="toggleFormat('note','italic')">I</button>
-                    </div>
-                    <textarea id="mNoteText" rows="3" placeholder="Additional info..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Slot Fill Color</label>
-                    <input type="color" id="mCellColor" value="#ffffff" style="height: 40px;">
-                </div>
-                <div id="collisionAlert" class="warning-banner" style="display:none; background-color:#fed7d7; color:#c53030; border-left-color:#e53e3e; margin-bottom: 0;">
-                    <strong>⚠️ Time Slot Conflict!</strong><br>
-                    This slot overlaps with an existing booking. Click "Confirm Overwrite" to delete the old booking and save this one.
-                </div>
-                <div class="btn-row">
-                    <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
-                    <button type="submit" class="btn-primary" id="saveBtn">Save Slot</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
+<!-- THEME INITIALIZATION -->
 <script>
-    const START_MINS = 450; 
-    const TOTAL_DAY_MINS = 780; 
-    const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-    
-    let currentScanner = '';
-    let currentSlots = [];
-    let currentHeaders = [];
-    let currentDayInfo = {}; 
-    let activitiesData = []; 
-    
-    let currentFormat = {
-        act: { color: "#000000", size: 12, bold: true, italic: false },
-        note: { color: "#ff0000", size: 12, bold: false, italic: false }
-    };
+  (function() {
+      const currentSavedTheme = localStorage.getItem('theme');
+      const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      let themeToApply = 'light';
+      if (currentSavedTheme === 'dark' || (!currentSavedTheme && prefersDarkScheme)) themeToApply = 'dark';
+      document.documentElement.setAttribute('data-theme', themeToApply);
+  })();
+</script>
 
-    function formatTime(mins) {
-        let h = Math.floor(mins/60); let m = mins%60;
-        return (h<10?'0'+h:h) + ':' + (m<10?'0'+m:m);
-    }
-    function timeToMins(timeStr) {
-        if (!timeStr) return 0;
-        let p = timeStr.split(':');
-        return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
-    }
+<style>
+  /* --- PRELOADER --- */
+  .preload * { transition: none !important; animation: none !important; }
 
-    function updateGridSizes() {
-        let rowH = document.getElementById('rowHeightSlider').value;
-        let colW = document.getElementById('colWidthSlider').value;
-        document.documentElement.style.setProperty('--row-height', rowH + 'px');
-        document.documentElement.style.setProperty('--table-width', colW + '%');
-        renderGrid();
-    }
+  /* --- CSS VARIABLES & THEMING --- */
+  :root {
+    --bg-color: #f4f7fb; --text-color: #2d3748; --text-muted: #4a5568;
+    --surface-color: #ffffff; --border-color: #e2e8f0; --primary: #3182ce;
+    --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    --search-bg: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); --search-border: #cbd5e0;
+  }
 
-    // --- 1. THE API BRIDGE ---
-// PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE:
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzuv2hdxJSRhWS_TWJ3gq5q4HQKcyB4O1PHlIL_tp5tfq9VhPoBNWbhKlMaZM6ABkBo/exec";
+  [data-theme="dark"] {
+    --bg-color: #1a202c; --text-color: #e2e8f0; --text-muted: #a0aec0;
+    --surface-color: #2d3748; --border-color: #4a5568; --primary: #63b3ed;
+    --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    --search-bg: linear-gradient(135deg, #2d3748 0%, #1a202c 100%); --search-border: #4a5568;
+  }
 
-// This magically replaces google.script.run!
-async function callBackend(action, payload = null) {
-    try {
-        let response = await fetch(GAS_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: action, payload: payload }),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' } // text/plain prevents CORS blocking
-        });
-        
-        let json = await response.json();
-        if (json.status === "error") throw new Error(json.message);
-        return json.data;
-    } catch (error) {
-        console.error("API Error:", error);
-        throw error;
-    }
-}
+  body { font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: var(--bg-color); color: var(--text-color); transition: 0.3s; }
+  .container { max-width: 1000px; margin: auto; }
+  
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid var(--border-color); }
+  .header h1 { margin: 0; font-size: 2.2em; font-weight: 800; }
+  [data-theme="dark"] .header h1 { background: linear-gradient(135deg, #63b3ed, #b794f4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  
+  .theme-btn { background: var(--surface-color); border: 1px solid var(--border-color); cursor: pointer; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; transition: 0.3s; }
+  .theme-btn:hover { transform: scale(1.05); border-color: var(--primary); }
+  .sun-icon, .moon-icon { position: absolute; width: 24px; height: 24px; transition: 0.6s; }
+  .sun-icon { opacity: 1; transform: rotate(0deg) scale(1); color: #ecc94b; }
+  .moon-icon { opacity: 0; transform: rotate(90deg) scale(0.5); color: #ffffff; }
+  [data-theme="dark"] .sun-icon { opacity: 0; transform: rotate(-90deg) scale(0.5); color: #e53e3e; }
+  [data-theme="dark"] .moon-icon { opacity: 1; transform: rotate(0deg) scale(1); }
 
-// --- 2. UPDATED INITIALIZATION ---
-window.onload = () => {
-    const startSel = document.getElementById('mStart');
-    const endSel = document.getElementById('mEnd');
-    for(let i = 0; i <= (TOTAL_DAY_MINS / 5); i++) {
-        let t = formatTime(START_MINS + (i * 5)); 
-        startSel.add(new Option(t, t));
-        endSel.add(new Option(t, t));
-    }
+  /* SEARCH BOX */
+  .search-box { background: var(--search-bg); padding: 25px; border-radius: 16px; box-shadow: var(--shadow); margin-bottom: 40px; border: 1px solid var(--search-border); }
+  .search-box h2 { margin-top: 0; font-size: 1.5em; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+  .search-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end; }
+  .control-group { display: flex; flex-direction: column; gap: 6px; }
+  .search-controls label { font-weight: 600; color: var(--text-muted); font-size: 0.9em; }
+  .search-controls select, .search-controls input { padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1em; background-color: var(--surface-color); color: var(--text-color); outline: none; }
+  .reset-btn { padding: 12px; background: linear-gradient(135deg, #fc8181, #e53e3e); color: white; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: bold; height: 44px; display: none; }
+  #search-status { margin-top: 20px; padding-top: 15px; border-top: 1px dashed var(--border-color); font-weight: 600; font-size: 1.05em; display: flex; align-items: center; gap: 8px; }
 
-    // Use callBackend instead of google.script.run
-    callBackend('getSettings')
-        .then(data => {
-            activitiesData = data;
-            const presetSelect = document.getElementById('mPreset');
-            presetSelect.innerHTML = '<option value="" disabled selected>Select to auto-fill below...</option>';
-            data.forEach(act => presetSelect.add(new Option(act.name, act.name)));
-        })
-        .catch(err => console.error(err));
+  /* INDEX GRID */
+  .index { margin-bottom: 40px; }
+  .index h2 { margin-top: 0; font-size: 1.5em; margin-bottom: 20px; }
+  .index ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; list-style-type: none; padding: 0; margin: 0; }
+  .index li { background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 10px; transition: 0.2s; }
+  .index li:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--primary); }
+  .index a { text-decoration: none; color: var(--text-color); font-weight: 600; display: flex; align-items: center; padding: 12px 15px; }
+  .color-dot { width: 14px; height: 14px; border-radius: 50%; margin-right: 12px; flex-shrink: 0; border: 2px solid rgba(255,255,255,0.2); }
 
-    loadScanner('HM1');
+  /* WARNING BANNER */
+  .warning-banner { background: linear-gradient(135deg, #fffaf0, #feebc8); color: #7b341e; padding: 20px 25px; border-radius: 16px; border-left: 6px solid #ed8936; margin-bottom: 25px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 20px; font-weight: 500; font-size: 1.05em; }
+  .warning-banner svg { color: #dd6b20; }
+  .warning-banner strong { display: block; font-size: 1.15em; margin-bottom: 4px; color: #c05621; }
+  [data-theme="dark"] .warning-banner { background: linear-gradient(135deg, rgba(237, 137, 54, 0.1), rgba(221, 107, 32, 0.1)); color: #fbd38d; border-left-color: #ed8936; }
 
-    setInterval(() => {
-        let isModalOpen = document.getElementById('editModal').style.display === 'flex';
-        if (currentScanner && !isModalOpen) {
-            callBackend('getScannerSchedule', currentScanner)
-                .then(data => {
-                    currentHeaders = data.headers;
-                    currentSlots = data.slots;
-                    currentDayInfo = data.dayInfo;
-                    renderGrid();
-                });
-        }
-    }, 60000); 
-};
+  /* SCAN SECTIONS */
+  .scan-section { background: var(--surface-color); padding: 25px; margin-bottom: 25px; border-radius: 16px; box-shadow: var(--shadow); border-left: 6px solid var(--primary); }
+  .scan-section h3 { margin-top: 0; font-size: 1.4em; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px;}
+  .scan-section ul { margin-bottom: 15px; padding-left: 0; list-style: none; }
+  .scan-section li { margin-bottom: 10px; padding: 8px 12px; background: var(--bg-color); border-radius: 8px; line-height: 1.8; }
+  .scan-section li strong { color: var(--primary); display: inline-block; width: 50px; }
+  .back-to-top { display: inline-block; font-size: 0.9em; color: var(--text-muted); text-decoration: none; font-weight: 600; background: var(--bg-color); padding: 6px 12px; border-radius: 6px; transition: 0.2s; }
+  .back-to-top:hover { background: var(--primary); color: #fff; }
 
-// --- 3. UPDATED FETCH DATA ---
-function loadScanner(scanner) {
-    currentScanner = scanner;
-    document.getElementById('monitoringWarning').style.display = 'none';
-    
-    document.querySelectorAll('.nav-btn').forEach(b => {
-        b.classList.remove('active');
-        if (b.innerText.trim() === scanner) b.classList.add('active');
-    });
+  /* HIGHLIGHT BADGES */
+  .mon, .tue, .wed, .thu, .fri, .sat, .sun { padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 0.85em; color: #1a202c !important; margin: 0 2px; display: inline-block; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .mon { background-color: #ffd1d1; } .tue { background-color: #ffe5cc; } .wed { background-color: #ffffcc; }
+  .thu { background-color: #d1ffd1; } .fri { background-color: #d1e0ff; } .sat { background-color: #e2e8f0; } .sun { background-color: #fbd38d; }
+  
+  #loadingState { text-align: center; padding: 50px; font-size: 1.5em; font-weight: bold; color: var(--primary); }
+  #errorState { text-align: center; padding: 50px; font-size: 1.2em; font-weight: bold; color: #e53e3e; display: none; }
+</style>
+</head>
+<body class="preload">
 
-    document.getElementById('headerArea').style.display = 'none';
-    document.getElementById('scheduleBody').innerHTML = '<tr><td colspan="8" style="padding:20px;">Loading data from Google Sheets...</td></tr>';
+<div class="container">
+  <!-- HEADER -->
+  <div class="header">
+    <h1>MRI Proforma Decoder <span style="font-size:0.5em; color:var(--text-muted)">(Live Data)</span></h1>
+    <button type="button" class="theme-btn" onclick="toggleTheme()" title="Toggle Dark Mode">
+      <svg class="sun-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+      <svg class="moon-icon" viewBox="0 0 24 24" fill="currentColor"><mask id="moon-mask"><rect x="0" y="0" width="24" height="24" fill="white" /><circle cx="15.5" cy="14.5" r="2.5" fill="black" /><circle cx="8.5" cy="9.5" r="1.8" fill="black" /></mask><circle cx="12" cy="12" r="10" mask="url(#moon-mask)" /></svg>
+    </button>
+  </div>
 
-    callBackend('getScannerSchedule', scanner)
-        .then(data => {
-            currentHeaders = data.headers;
-            currentSlots = data.slots;
-            currentDayInfo = data.dayInfo;
-            renderGrid();
-        })
-        .catch(error => {
-            alert("Error loading scanner data: \n" + error.message);
-        });
-}
+  <!-- SEARCH INTERFACE -->
+  <div class="search-box">
+    <h2><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Search Slot Availability</h2>
+    <div class="search-controls">
+      <div class="control-group">
+        <label>Scanner</label>
+        <select id="search-scanner" onchange="performSearch()">
+          <option value="ALL">All Scanners</option>
+          <option value="HM1">HM1</option><option value="HM2">HM2</option><option value="HM3">HM3</option><option value="HM4">HM4</option>
+          <option value="NM1">NM1</option><option value="NM2">NM2</option><option value="NM3">NM3</option><option value="WM">WM</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Day</label>
+        <select id="search-day" onchange="performSearch()">
+          <option value="all">Any Day</option>
+          <option value="mon">Monday</option><option value="tue">Tuesday</option><option value="wed">Wednesday</option>
+          <option value="thu">Thursday</option><option value="fri">Friday</option><option value="sat">Saturday</option><option value="sun">Sunday</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Time Between</label>
+        <input type="time" id="search-start" value="07:00" onchange="performSearch()" oninput="performSearch()">
+      </div>
+      <div class="control-group">
+        <label>And</label>
+        <input type="time" id="search-end" value="21:00" onchange="performSearch()" oninput="performSearch()">
+      </div>
+      <button type="button" id="reset-btn" class="reset-btn" onclick="resetSearch()">Clear Filters</button>
+    </div>
+    <div id="search-status">Showing all available slots. Modify filters above to search.</div>
+  </div>
 
-// --- 4. UPDATED SAVE LOGIC ---
-document.getElementById('slotForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    let isForceOverwrite = this.dataset.force === "true";
-    let formData = {
-        scanner: document.getElementById('mScanner').value,
-        day: document.getElementById('mDay').value,
-        trackMode: document.getElementById('mTrack').value,
-        startTime: document.getElementById('mStart').value,
-        endTime: document.getElementById('mEnd').value,
-        activity: document.getElementById('mActivityText').value,
-        note: document.getElementById('mNoteText').value,
-        color: document.getElementById('mCellColor').value,
-        format: currentFormat,
-        forceOverwrite: isForceOverwrite
-    };
+  <div id="loadingState">Gathering live schedule data from Google Sheets... please wait.</div>
+  <div id="errorState"></div>
 
-    if(formData.startTime >= formData.endTime) return alert("End Time must be later than Start Time.");
+  <!-- DYNAMIC DOM CONTAINERS -->
+  <div class="index" id="index-top" style="display:none;">
+    <h2>Scan Categories</h2>
+    <ul id="index-list"></ul>
+  </div>
 
-    const saveBtn = document.getElementById('saveBtn');
-    saveBtn.innerText = isForceOverwrite ? "Overwriting..." : "Saving...";
-    saveBtn.disabled = true;
+  <!-- PATIENT MONITORING WARNING -->
+  <div id="monitoring-warning" class="warning-banner" style="display: none;">
+    <svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="2" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    <div>
+      <strong>PATIENT MONITORING REQUIRED</strong>
+      You selected a scan requiring patient monitoring. Please cross-reference other monitoring lists to ensure adequate equipment is available.
+    </div>
+  </div>
 
-    callBackend('saveSlotToSheet', formData)
-        .then(res => {
-            if (res === "COLLISION") {
-                document.getElementById('collisionAlert').style.display = 'block';
-                document.getElementById('slotForm').dataset.force = "true";
-                saveBtn.innerText = "Confirm Overwrite";
-                saveBtn.style.backgroundColor = "#e53e3e"; 
-                saveBtn.disabled = false;
-            } else {
-                closeModal();
-                loadScanner(formData.scanner); 
-            }
-        })
-        .catch(error => {
-            alert("Google Sheets Error: " + error.message);
-            saveBtn.innerText = isForceOverwrite ? "Confirm Overwrite" : "Save Slot";
-            saveBtn.disabled = false;
-        });
-});
+  <div id="scans-container" style="display:none;"></div>
 
-    function toggleTheme() {
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
-        localStorage.setItem('theme', isDark ? 'light' : 'dark');
-    }
+</div>
 
-    document.getElementById('mStart').addEventListener('change', function(e) {
-        let idx = e.target.selectedIndex;
-        document.getElementById('mEnd').selectedIndex = Math.min(idx + 2, (TOTAL_DAY_MINS / 5));
-    });
+<!-- JAVASCRIPT ENGINE -->
+<script>
+  // ==========================================
+  // CONFIGURATION: PASTE YOUR DEPLOYED URL HERE
+  // ==========================================
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbzuv2hdxJSRhWS_TWJ3gq5q4HQKcyB4O1PHlIL_tp5tfq9VhPoBNWbhKlMaZM6ABkBo/exec";
 
-    function toggleFormat(target, prop) { currentFormat[target][prop] = !currentFormat[target][prop]; setFormatUI(); }
-    function updateFormat(target, prop, value) { currentFormat[target][prop] = value; }
-    function setFormatUI() {
-        document.getElementById('fActColor').value = currentFormat.act.color;
-        document.getElementById('fActSize').value = currentFormat.act.size;
-        document.getElementById('btnActBold').classList.toggle('active', currentFormat.act.bold);
-        document.getElementById('btnActItalic').classList.toggle('active', currentFormat.act.italic);
-        document.getElementById('fNoteColor').value = currentFormat.note.color;
-        document.getElementById('fNoteSize').value = currentFormat.note.size;
-        document.getElementById('btnNoteBold').classList.toggle('active', currentFormat.note.bold);
-        document.getElementById('btnNoteItalic').classList.toggle('active', currentFormat.note.italic);
-    }
-    
-    function applyPreset() {
-        const val = document.getElementById('mPreset').value;
-        const selectedActivity = activitiesData.find(a => a.name === val);
-        if (selectedActivity) {
-            document.getElementById('mActivityText').value = selectedActivity.name;
-            document.getElementById('mNoteText').value = selectedActivity.note || "";
-            document.getElementById('mCellColor').value = (selectedActivity.color && selectedActivity.color.startsWith('#')) ? selectedActivity.color : "#ffffff";
-            currentFormat.act = { color: "#000000", size: 12, bold: true, italic: false };
-            currentFormat.note = { color: "#ff0000", size: 12, bold: false, italic: false };
-            setFormatUI();
-        }
-    }
+  // --- API BRIDGE LOGIC ---
+  async function callBackend(action, payload = null) {
+      try {
+          let response = await fetch(GAS_URL, {
+              method: 'POST',
+              body: JSON.stringify({ action: action, payload: payload }),
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' } // text/plain prevents CORS errors
+          });
+          
+          let json = await response.json();
+          if (json.status === "error") throw new Error(json.message);
+          return json.data;
+      } catch (error) {
+          console.error("API Error:", error);
+          throw error;
+      }
+  }
 
-    function printProforma() {
-        let oldRes = document.getElementById('resSelect').value;
-        document.getElementById('resSelect').value = "15";
-        renderGrid();
-        
-        setTimeout(() => {
-            window.print();
-            document.getElementById('resSelect').value = oldRes;
-            renderGrid();
-        }, 300);
-    }
+  // --- CONSTANTS ---
+  const MONITORING_GROUPS = ['PPM (Pacemakers)', 'Cardiac (Stress/Super)', 'GA / XGA'];
+  const DAY_ORDER = { "Monday":1, "Tuesday":2, "Wednesday":3, "Thursday":4, "Friday":5, "Saturday":6, "Sunday":7 };
 
-    function loadScanner(scanner) {
-        currentScanner = scanner;
-        document.getElementById('monitoringWarning').style.display = 'none';
-        
-        document.querySelectorAll('.nav-btn').forEach(b => {
-            b.classList.remove('active');
-            if (b.innerText.trim() === scanner) b.classList.add('active');
-        });
+  window.addEventListener('DOMContentLoaded', () => {
+      document.body.classList.remove('preload');
+      
+      // Fetch Live Data using the new API Bridge
+      callBackend('getGlobalSchedule')
+          .then(allSlots => {
+              buildUI(allSlots);
+          })
+          .catch(err => {
+              document.getElementById('loadingState').style.display = 'none';
+              const errDiv = document.getElementById('errorState');
+              errDiv.style.display = 'block';
+              errDiv.innerText = "Error loading data: " + err.message + "\nMake sure you pasted your Web App URL into the GAS_URL variable at the top of the decoder script!";
+          });
+  });
 
-        document.getElementById('headerArea').style.display = 'none';
-        document.getElementById('scheduleBody').innerHTML = '<tr><td colspan="8" style="padding:20px;">Loading data from Google Sheets...</td></tr>';
+  function sanitizeId(name) {
+      return 'scan-' + name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
 
-        google.script.run
-            .withSuccessHandler(function(data) {
-                currentHeaders = data.headers;
-                currentSlots = data.slots;
-                currentDayInfo = data.dayInfo;
-                renderGrid();
-            })
-            .withFailureHandler(function(error) {
-                alert("Error loading scanner data: \n" + error.message);
-            })
-            .getScannerSchedule(scanner);
-    }
+  // --- BUILD THE UI DYNAMICALLY ---
+  function buildUI(allSlots) {
+      let activities = {};
 
-    function renderGrid() {
-        try {
-            if (!currentScanner) return; 
+      // 1. Group all slots by Activity -> Scanner -> Day
+      allSlots.forEach(slot => {
+          if (!activities[slot.activity]) activities[slot.activity] = { color: slot.color, scanners: {} };
+          if (!activities[slot.activity].scanners[slot.scanner]) activities[slot.activity].scanners[slot.scanner] = [];
+          activities[slot.activity].scanners[slot.scanner].push(slot);
+      });
 
-            let displayResMins = parseInt(document.getElementById('resSelect').value);
-            let rowCount = TOTAL_DAY_MINS / displayResMins;
-            let rowHeightPx = parseInt(document.getElementById('rowHeightSlider').value);
-            
-            document.documentElement.style.setProperty('--row-count', rowCount);
-            
-            const headerDiv = document.getElementById('headerArea');
-            headerDiv.style.display = 'block';
-            
-            let headerHtml = `<h2 style="margin-top:0; margin-bottom:5px;">${currentScanner}</h2>`;
-            if (Array.isArray(currentHeaders)) {
-                currentHeaders.forEach(h => {
-                    let val = h.text ? h.text.toString().trim() : "";
-                    if (val !== "" && val !== currentScanner) {
-                        let fontColor = (h.color === '#000000' || h.color === '#ffffff') ? 'inherit' : h.color;
-                        headerHtml += `<p style="margin:2px 0; font-size:0.9em; font-weight:bold; color:${fontColor};">${val}</p>`;
-                    }
-                });
-            }
-            headerDiv.innerHTML = headerHtml;
+      const indexList = document.getElementById('index-list');
+      const scansContainer = document.getElementById('scans-container');
+      
+      // Sort Activities Alphabetically
+      const sortedActivityNames = Object.keys(activities).sort();
 
-            const tbody = document.getElementById('scheduleBody');
-            tbody.innerHTML = '';
+      sortedActivityNames.forEach(actName => {
+          const actData = activities[actName];
+          const sectionId = sanitizeId(actName);
+          const isMonitoring = MONITORING_GROUPS.includes(actName);
 
-            for (let r = 0; r < rowCount; r++) {
-                let tr = document.createElement('tr');
-                
-                let bucketStartMins = START_MINS + (r * displayResMins);
-                let timeStr = formatTime(bucketStartMins);
-                
-                let showLabel = false;
-                if (displayResMins === 5 && (r % 6 === 0)) showLabel = true;      
-                else if (displayResMins === 10 && (r % 3 === 0)) showLabel = true; 
-                else if (displayResMins === 15 && (r % 2 === 0)) showLabel = true; 
-                else if (displayResMins >= 30) showLabel = true;                   
-                
-                let tdTime = document.createElement('td');
-                tdTime.className = 'time-col';
-                tdTime.innerText = showLabel ? timeStr : '';
-                tr.appendChild(tdTime);
+          // Build Index Item
+          let li = document.createElement('li');
+          li.innerHTML = `<a href="#${sectionId}"><span class="color-dot" style="background-color:${actData.color}; border-color:${actData.color}"></span>${actName}</a>`;
+          
+          if (isMonitoring) {
+              li.querySelector('a').addEventListener('click', (e) => {
+                  e.preventDefault(); activateMonitoringView();
+              });
+          }
+          indexList.appendChild(li);
 
-                for (let day of DAYS) {
-                    let td = document.createElement('td');
-                    td.className = 'grid-cell';
-                    td.id = `cell-${day}-${r}`; 
-                    
-                    let endTimeStr = formatTime(bucketStartMins + displayResMins); 
-                    td.title = `Click to book ${day} at ${timeStr}`;
-                    td.onclick = () => openModal(currentScanner, day, timeStr, endTimeStr, '', '', '#ffffff', null, null, 'Full');
-                    tr.appendChild(td);
-                }
-                tbody.appendChild(tr);
-            }
+          // Build Scan Section Item
+          let section = document.createElement('div');
+          section.id = sectionId;
+          section.className = 'scan-section';
+          section.style.borderLeftColor = actData.color;
+          section.style.backgroundColor = (document.documentElement.getAttribute('data-theme') === 'dark') ? 'var(--surface-color)' : actData.color + '15'; 
+          
+          let html = `<h3><span class="color-dot" style="background-color:${actData.color}; border-color:${actData.color}"></span> ${actName}</h3><ul>`;
 
-            for (let slot of currentSlots) {
-                let startMins = timeToMins(slot.startTime);
-                let endMins = timeToMins(slot.endTime);
-                
-                if (endMins > START_MINS + TOTAL_DAY_MINS) {
-                    endMins = START_MINS + TOTAL_DAY_MINS;
-                }
-                
-                let rowIndex = Math.floor((startMins - START_MINS) / displayResMins);
-                if (rowIndex < 0 || rowIndex >= rowCount) continue; 
-                
-                let offsetMins = (startMins - START_MINS) % displayResMins;
-                let topPct = (offsetMins / displayResMins) * 100;
-                
-                let durationMins = endMins - startMins;
-                let heightPct = (durationMins / displayResMins) * 100;
-                
-                let endRowIndex = Math.floor((endMins - 1 - START_MINS) / displayResMins);
-                let bordersCrossed = endRowIndex - rowIndex;
-                if (bordersCrossed < 0) bordersCrossed = 0;
-                
-                let tdAnchor = document.getElementById(`cell-${slot.day}-${rowIndex}`);
-                if (!tdAnchor) continue;
-                
-                let div = document.createElement('div');
-                div.className = 'slot-event';
-                div.style.top = topPct + '%';
-                div.style.height = `calc(${heightPct}% + ${bordersCrossed}px)`;
-                
-                div.style.left = `calc(${slot.leftPct}% + 1px)`;
-                div.style.width = `calc(${slot.widthPct}% - 2px)`;
-                div.style.backgroundColor = slot.color;
-                
-                let approxHeightPx = (durationMins / displayResMins) * rowHeightPx;
-                if (approxHeightPx < 32) {
-                    div.classList.add('short-slot');
-                }
-                
-                let actFmt = slot.actFormat || { color: "#000000", size: 12, bold: true, italic: false };
-                let noteFmt = slot.noteFormat || { color: "#ff0000", size: 12, bold: false, italic: false };
-                
-                let timeHtml = `<div class="time-badge">${slot.startTime} - ${slot.endTime}</div>`;
-                let actHtml = `<span class="slot-act" style="color:${actFmt.color}; font-size:${actFmt.size}pt; font-weight:${actFmt.bold?'bold':'normal'}; font-style:${actFmt.italic?'italic':'normal'}; line-height: 1.1;">${slot.activity}</span>`;
-                let noteHtml = slot.note ? `<div class="slot-note" style="color:${noteFmt.color}; font-size:${noteFmt.size}pt; font-weight:${noteFmt.bold?'bold':'normal'}; font-style:${noteFmt.italic?'italic':'normal'}; white-space:pre-wrap; margin-top:2px; line-height: 1.1;">${slot.note}</div>` : '';
-                
-                div.innerHTML = timeHtml + actHtml + noteHtml;
-                
-                div.onclick = (e) => {
-                    e.stopPropagation();
-                    openModal(currentScanner, slot.day, slot.startTime, slot.endTime, slot.activity, slot.note, slot.color, actFmt, noteFmt, slot.trackMode);
-                };
-                
-                tdAnchor.appendChild(div);
-            }
-        } catch (error) {
-            alert("Error rendering grid: " + error.message);
-            console.error(error);
-        }
-    }
+          // Sort Scanners
+          const sortedScanners = Object.keys(actData.scanners).sort();
+          sortedScanners.forEach(scanner => {
+              let scannerSlots = actData.scanners[scanner];
+              
+              // Group by Day
+              let byDay = {};
+              scannerSlots.forEach(s => {
+                  if(!byDay[s.day]) byDay[s.day] = [];
+                  byDay[s.day].push(`${s.startTime} - ${s.endTime}${s.note ? ' <small>(' + s.note + ')</small>' : ''}`);
+              });
 
-    function openModal(scanner, day, start, end, activity, note, color, actFormat, noteFormat, trackMode) {
-        document.getElementById('mScanner').value = scanner;
-        document.getElementById('mDay').value = day;
-        document.getElementById('mStart').value = start;
-        document.getElementById('mEnd').value = end;
-        document.getElementById('mActivityText').value = activity || "";
-        document.getElementById('mNoteText').value = note || "";
-        document.getElementById('mCellColor').value = (color && color.startsWith('#')) ? color : "#ffffff";
-        document.getElementById('mPreset').value = ""; 
-        
-        let trackDiv = document.getElementById('trackGroup');
-        let trackSel = document.getElementById('mTrack');
-        trackSel.innerHTML = '<option value="Full">Full Day Width</option>';
-        
-        if (currentDayInfo[day] && currentDayInfo[day].span > 1) {
-            for(let i = 1; i <= currentDayInfo[day].span; i++) {
-                trackSel.add(new Option(`Track / Column ${i}`, i.toString()));
-            }
-            trackDiv.style.display = 'block';
-            trackSel.value = trackMode || "Full";
-        } else {
-            trackDiv.style.display = 'none';
-            trackSel.value = "Full";
-        }
-        
-        if (actFormat) currentFormat.act = actFormat;
-        else currentFormat.act = { color: "#000000", size: 12, bold: true, italic: false };
-        if (noteFormat) currentFormat.note = noteFormat;
-        else currentFormat.note = { color: "#ff0000", size: 12, bold: false, italic: false };
-        
-        setFormatUI();
-        resetSubmitButton();
-        document.getElementById('editModal').style.display = 'flex';
-    }
+              let dayStrings = [];
+              Object.keys(byDay).sort((a,b) => DAY_ORDER[a] - DAY_ORDER[b]).forEach(day => {
+                  let shortDay = day.substring(0,3).toLowerCase();
+                  dayStrings.push(`<span class="${shortDay}">${day}</span> ${byDay[day].join(', ')}`);
+              });
 
-    function closeModal() {
-        document.getElementById('editModal').style.display = 'none';
-        resetSubmitButton();
-    }
+              html += `<li><strong>${scanner}:</strong> ${dayStrings.join('; ')}</li>`;
+          });
 
-    function resetSubmitButton() {
-        document.getElementById('collisionAlert').style.display = 'none';
-        document.getElementById('slotForm').dataset.force = "false";
-        const saveBtn = document.getElementById('saveBtn');
-        saveBtn.innerText = "Save Slot";
-        saveBtn.disabled = false;
-        saveBtn.style.backgroundColor = "var(--primary)";
-    }
+          html += `</ul><a href="#index-top" class="back-to-top">↑ Back to Index</a>`;
+          section.innerHTML = html;
+          
+          if(isMonitoring) {
+              section.querySelector('.back-to-top').addEventListener('click', (e) => {
+                  e.preventDefault(); 
+                  document.getElementById('monitoring-warning').style.display = 'none';
+                  resetSearch();      
+                  document.getElementById('index-top').scrollIntoView({behavior: 'smooth', block: 'start'});
+              });
+          }
 
-    document.getElementById('slotForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        let isForceOverwrite = this.dataset.force === "true";
-        let formData = {
-            scanner: document.getElementById('mScanner').value,
-            day: document.getElementById('mDay').value,
-            trackMode: document.getElementById('mTrack').value,
-            startTime: document.getElementById('mStart').value,
-            endTime: document.getElementById('mEnd').value,
-            activity: document.getElementById('mActivityText').value,
-            note: document.getElementById('mNoteText').value,
-            color: document.getElementById('mCellColor').value,
-            format: currentFormat,
-            forceOverwrite: isForceOverwrite
-        };
+          scansContainer.appendChild(section);
+      });
 
-        if(formData.startTime >= formData.endTime) return alert("End Time must be later than Start Time.");
+      // Show UI
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('index-top').style.display = 'block';
+      document.getElementById('scans-container').style.display = 'block';
+  }
 
-        const saveBtn = document.getElementById('saveBtn');
-        saveBtn.innerText = isForceOverwrite ? "Overwriting..." : "Saving...";
-        saveBtn.disabled = true;
+  // --- MONITORING VIEW ACTIVATOR ---
+  function activateMonitoringView() {
+      resetSearch(true); // reset silently
+      document.getElementById('reset-btn').style.display = 'block';
+      
+      const warningBanner = document.getElementById('monitoring-warning');
+      warningBanner.style.display = 'flex';
 
-        google.script.run
-            .withSuccessHandler(function(res) {
-                if (res === "COLLISION") {
-                    document.getElementById('collisionAlert').style.display = 'block';
-                    document.getElementById('slotForm').dataset.force = "true";
-                    saveBtn.innerText = "Confirm Overwrite";
-                    saveBtn.style.backgroundColor = "#e53e3e"; 
-                    saveBtn.disabled = false;
-                } else {
-                    closeModal();
-                    loadScanner(formData.scanner); 
-                }
-            })
-            .withFailureHandler(function(error) {
-                alert("Google Sheets Error: " + error.message);
-                saveBtn.innerText = isForceOverwrite ? "Confirm Overwrite" : "Save Slot";
-                saveBtn.disabled = false;
-            })
-            .saveSlotToSheet(formData);
-    });
+      const targetIds = MONITORING_GROUPS.map(name => sanitizeId(name));
 
-    function openSearch() {
-        if (!window.APP_URL) {
-            alert("Search engine is still loading. Please try again in a second.");
-            return;
-        }
-        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-        if(currentScanner) {
-            document.querySelectorAll('.nav-btn').forEach(b => {
-                if (b.innerText.trim() === currentScanner) b.classList.add('active');
-            });
-        }
-        window.open(window.APP_URL + "?page=decoder", "_blank");
-    }
+      // Filter Sections
+      document.querySelectorAll('.scan-section').forEach(sec => {
+          sec.style.display = targetIds.includes(sec.id) ? '' : 'none';
+      });
+
+      // Filter Index
+      document.querySelectorAll('.index li').forEach(indexItem => {
+          const targetId = indexItem.querySelector('a').getAttribute('href').substring(1);
+          indexItem.style.display = targetIds.includes(targetId) ? '' : 'none';
+      });
+
+      const status = document.getElementById('search-status');
+      status.style.color = '#dd6b20';
+      status.innerHTML = `Showing Monitoring Group. Please verify availability across these lists.`;
+
+      setTimeout(() => warningBanner.scrollIntoView({behavior: 'smooth', block: 'start'}), 50);
+  }
+
+  // --- CORE SEARCH LOGIC ---
+  function parseTime(timeStr) {
+      if (!timeStr) return 0;
+      const parts = timeStr.split(':');
+      return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  }
+
+  function getDaysFromText(text) {
+      let t = text.toLowerCase();
+      let days = new Set();
+      if (t.includes('mon')) days.add('mon'); if (t.includes('tue')) days.add('tue');
+      if (t.includes('wed')) days.add('wed'); if (t.includes('thu')) days.add('thu');
+      if (t.includes('fri')) days.add('fri'); if (t.includes('sat')) days.add('sat');
+      if (t.includes('sun')) days.add('sun');
+      return days;
+  }
+
+  function getRanges(text) {
+      let ranges = [];
+      const rangeRegex = /(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/g;
+      let match;
+      while ((match = rangeRegex.exec(text)) !== null) {
+          ranges.push({ start: parseTime(match[1]), end: parseTime(match[2]) });
+      }
+      return ranges;
+  }
+
+  function performSearch() {
+      document.getElementById('monitoring-warning').style.display = 'none';
+
+      const scannerFilter = document.getElementById('search-scanner').value;
+      const dayFilter = document.getElementById('search-day').value;
+      const startInput = document.getElementById('search-start').value;
+      const endInput = document.getElementById('search-end').value;
+
+      const startVal = startInput ? startInput.substring(0, 5) : "07:00";
+      const endVal = endInput ? endInput.substring(0, 5) : "21:00";
+
+      const searchStart = parseTime(startVal);
+      const searchEnd = parseTime(endVal);
+
+      const isDefault = (scannerFilter === 'ALL' && dayFilter === 'all' && startVal === '07:00' && endVal === '21:00');
+      document.getElementById('reset-btn').style.display = isDefault ? 'none' : 'block';
+
+      let visibleSections = 0; let visibleItems = 0;
+      const sections = document.querySelectorAll('.scan-section');
+      
+      sections.forEach(section => {
+          let sectionHasVisibleItem = false;
+          const items = section.querySelectorAll('li');
+          
+          items.forEach(item => {
+              const strongTag = item.querySelector('strong');
+              if (!strongTag) return;
+              
+              const scannerText = strongTag.textContent.replace(':', '').trim();
+              const htmlContent = item.innerHTML; 
+              
+              const chunks = htmlContent.split(';');
+              let itemMatches = false;
+
+              for (let chunk of chunks) {
+                  let text = chunk.replace(/<[^>]*>?/gm, ''); 
+                  let scannerMatch = (scannerFilter === 'ALL' || scannerText.includes('All Scanners') || scannerText.includes(scannerFilter));
+                  let days = getDaysFromText(text);
+                  let dayMatch = (dayFilter === 'all' || days.size === 0 || days.has(dayFilter));
+                  
+                  let ranges = getRanges(text);
+                  let timeMatch = false;
+                  
+                  if (ranges.length === 0) timeMatch = true; 
+                  else {
+                      for (let r of ranges) {
+                          if (Math.max(searchStart, r.start) < Math.min(searchEnd, r.end)) {
+                              timeMatch = true; break;
+                          }
+                      }
+                  }
+                  
+                  if (scannerMatch && dayMatch && timeMatch) {
+                      itemMatches = true; break; 
+                  }
+              }
+
+              if (itemMatches) {
+                  item.style.display = '';
+                  sectionHasVisibleItem = true;
+                  visibleItems++;
+              } else item.style.display = 'none';
+          });
+
+          if (sectionHasVisibleItem) {
+              section.style.display = '';
+              visibleSections++;
+          } else section.style.display = 'none';
+      });
+
+      document.querySelectorAll('.index li').forEach(indexItem => indexItem.style.display = '');
+
+      const status = document.getElementById('search-status');
+      if (isDefault) {
+          status.style.color = 'var(--text-muted)';
+          status.innerHTML = `Showing all available slots. Modify filters above to search.`;
+      } else if (visibleItems === 0) {
+          status.style.color = '#e53e3e';
+          status.innerHTML = `No matching slots found for these criteria.`;
+      } else {
+          status.style.color = 'var(--primary)';
+          status.innerHTML = `Showing ${visibleItems} matching slot(s) across ${visibleSections} scan category/categories.`;
+      }
+  }
+
+  function resetSearch(silent = false) {
+      document.getElementById('search-scanner').value = 'ALL';
+      document.getElementById('search-day').value = 'all';
+      document.getElementById('search-start').value = '07:00';
+      document.getElementById('search-end').value = '21:00';
+      if(!silent) performSearch(); 
+  }
+
+  function toggleTheme() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      localStorage.setItem('theme', isDark ? 'light' : 'dark');
+      
+      document.querySelectorAll('.scan-section').forEach(sec => {
+          if(!isDark) { sec.style.backgroundColor = 'var(--surface-color)'; }
+          else { 
+             let color = sec.style.borderLeftColor;
+             sec.style.backgroundColor = color ? color.replace(')', ', 0.15)').replace('rgb', 'rgba') : 'var(--surface-color)';
+          }
+      });
+  }
 </script>
 </body>
 </html>
