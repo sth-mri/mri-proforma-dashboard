@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MRI Proforma Decoder</title>
+<script>
+  (function() {
+      const currentSavedTheme = localStorage.getItem('theme');
+      const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      let themeToApply = 'light';
+      if (currentSavedTheme === 'dark' || (!currentSavedTheme && prefersDarkScheme)) themeToApply = 'dark';
+      document.documentElement.setAttribute('data-theme', themeToApply);
+  })();
+</script>
+<style>
+  .preload * { transition: none !important; animation: none !important; }
+  :root {
+    --bg-color: #f4f7fb; --text-color: #2d3748; --text-muted: #4a5568;
+    --surface-color: #ffffff; --border-color: #e2e8f0; --primary: #3182ce;
+    --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    --search-bg: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); --search-border: #cbd5e0;
+  }
+  [data-theme="dark"] {
+    --bg-color: #1a202c; --text-color: #e2e8f0; --text-muted: #a0aec0;
+    --surface-color: #2d3748; --border-color: #4a5568; --primary: #63b3ed;
+    --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    --search-bg: linear-gradient(135deg, #2d3748 0%, #1a202c 100%); --search-border: #4a5568;
+  }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: var(--bg-color); color: var(--text-color); transition: 0.3s; }
+  .container { max-width: 1000px; margin: auto; }
+  
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid var(--border-color); }
+  .header h1 { margin: 0; font-size: 2.2em; font-weight: 800; }
+  [data-theme="dark"] .header h1 { background: linear-gradient(135deg, #63b3ed, #b794f4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  
+  .theme-btn { background: var(--surface-color); border: 1px solid var(--border-color); cursor: pointer; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; transition: 0.3s; }
+  .theme-btn:hover { transform: scale(1.05); border-color: var(--primary); }
+  .sun-icon, .moon-icon { position: absolute; width: 24px; height: 24px; transition: 0.6s; }
+  .sun-icon { opacity: 1; transform: rotate(0deg) scale(1); color: #ecc94b; }
+  .moon-icon { opacity: 0; transform: rotate(90deg) scale(0.5); color: #ffffff; }
+  [data-theme="dark"] .sun-icon { opacity: 0; transform: rotate(-90deg) scale(0.5); color: #e53e3e; }
+  [data-theme="dark"] .moon-icon { opacity: 1; transform: rotate(0deg) scale(1); }
+
+  .search-box { background: var(--search-bg); padding: 25px; border-radius: 16px; box-shadow: var(--shadow); margin-bottom: 40px; border: 1px solid var(--search-border); }
+  .search-box h2 { margin-top: 0; font-size: 1.5em; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+  .search-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end; }
+  .control-group { display: flex; flex-direction: column; gap: 6px; }
+  .search-controls label { font-weight: 600; color: var(--text-muted); font-size: 0.9em; }
+  .search-controls select, .search-controls input { padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1em; background-color: var(--surface-color); color: var(--text-color); outline: none; }
+  .reset-btn { padding: 12px; background: linear-gradient(135deg, #fc8181, #e53e3e); color: white; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: bold; height: 44px; display: none; }
+  #search-status { margin-top: 20px; padding-top: 15px; border-top: 1px dashed var(--border-color); font-weight: 600; font-size: 1.05em; display: flex; align-items: center; gap: 8px; }
+
+  .index { margin-bottom: 40px; }
+  .index h2 { margin-top: 0; font-size: 1.5em; margin-bottom: 20px; }
+  .index ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; list-style-type: none; padding: 0; margin: 0; }
+  .index li { background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 10px; transition: 0.2s; }
+  .index li:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--primary); }
+  .index a { text-decoration: none; color: var(--text-color); font-weight: 600; display: flex; align-items: center; padding: 12px 15px; }
+  .color-dot { width: 14px; height: 14px; border-radius: 50%; margin-right: 12px; flex-shrink: 0; border: 2px solid rgba(255,255,255,0.2); }
+
+  .warning-banner { background: linear-gradient(135deg, #fffaf0, #feebc8); color: #7b341e; padding: 20px 25px; border-radius: 16px; border-left: 6px solid #ed8936; margin-bottom: 25px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 20px; font-weight: 500; font-size: 1.05em; }
+  .warning-banner svg { color: #dd6b20; flex-shrink: 0; }
+  .warning-banner strong { display: block; font-size: 1.15em; margin-bottom: 4px; color: #c05621; }
+  [data-theme="dark"] .warning-banner { background: linear-gradient(135deg, rgba(237, 137, 54, 0.1), rgba(221, 107, 32, 0.1)); color: #fbd38d; border-left-color: #ed8936; }
+
+  #update-banner { background: linear-gradient(135deg, #ebf8ff, #bee3f8); color: #2c5282; border-left-color: #3182ce; }
+  #update-banner svg { color: #3182ce; animation: spin 2s linear infinite; }
+  #update-banner strong { color: #2b6cb0; }
+  [data-theme="dark"] #update-banner { background: linear-gradient(135deg, rgba(49, 130, 206, 0.15), rgba(43, 108, 176, 0.15)); color: #90cdf4; border-left-color: #63b3ed; }
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+
+  /* --- MONITORING GROUP WRAPPER --- */
+  .monitoring-wrapper {
+      border: 3px solid #ecc94b;
+      border-radius: 16px;
+      padding: 25px;
+      background-color: rgba(236, 201, 75, 0.15);
+      margin-bottom: 30px;
+      box-shadow: var(--shadow);
+  }
+  .monitoring-wrapper .monitoring-header {
+      font-weight: bold;
+      color: #b7791f;
+      margin-bottom: 25px;
+      font-size: 1.15em;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      line-height: 1.4;
+  }
+  .monitoring-wrapper .monitoring-header svg {
+      color: #dd6b20;
+      flex-shrink: 0;
+  }
+  [data-theme="dark"] .monitoring-wrapper {
+      border-color: #d69e2e;
+      background-color: rgba(214, 158, 46, 0.15);
+  }
+  [data-theme="dark"] .monitoring-wrapper .monitoring-header {
+      color: #fbd38d;
+  }
+  [data-theme="dark"] .monitoring-wrapper .monitoring-header svg {
+      color: #f6ad55;
+  }
+  /* Neatly nested scan-sections inside the yellow wrapper */
+  .monitoring-wrapper .scan-section {
+      box-shadow: none;
+      border: 1px solid var(--border-color);
+      margin-bottom: 20px;
+  }
+  .monitoring-wrapper .scan-section:last-child { margin-bottom: 0; }
+
+  /* --- STANDARD SCAN SECTIONS --- */
+  .scan-section { background: var(--surface-color); padding: 25px; margin-bottom: 25px; border-radius: 16px; box-shadow: var(--shadow); border-left: 6px solid var(--primary); }
+  .scan-section h3 { margin-top: 0; font-size: 1.4em; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px;}
+  .scan-section ul { margin-bottom: 15px; padding-left: 0; list-style: none; }
+  .scan-section li { margin-bottom: 10px; padding: 8px 12px; background: var(--bg-color); border-radius: 8px; line-height: 1.8; }
+  .scan-section li strong { color: var(--primary); display: inline-block; width: 50px; }
+  .back-to-top { display: inline-block; font-size: 0.9em; color: var(--text-muted); text-decoration: none; font-weight: 600; background: var(--bg-color); padding: 6px 12px; border-radius: 6px; transition: 0.2s; }
+  .back-to-top:hover { background: var(--primary); color: #fff; }
+
+  .mon, .tue, .wed, .thu, .fri, .sat, .sun { padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 0.85em; color: #1a202c !important; margin: 0 2px; display: inline-block; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .mon { background-color: #ffd1d1; } .tue { background-color: #ffe5cc; } .wed { background-color: #ffffcc; }
+  .thu { background-color: #d1ffd1; } .fri { background-color: #d1e0ff; } .sat { background-color: #e2e8f0; } .sun { background-color: #fbd38d; }
+  
+  #loadingState { text-align: center; padding: 50px; font-size: 1.2em; font-weight: bold; color: var(--primary); }
+</style>
+</head>
+<body class="preload">
+
+<div class="container">
+  <!-- HEADER -->
+  <div class="header">
+    <h1>MRI Proforma Decoder <span style="font-size:0.5em; color:var(--text-muted)">(Live Data)</span></h1>
+    <button type="button" class="theme-btn" onclick="toggleTheme()">
+      <svg class="sun-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+      <svg class="moon-icon" viewBox="0 0 24 24" fill="currentColor"><mask id="moon-mask"><rect x="0" y="0" width="24" height="24" fill="white" /><circle cx="15.5" cy="14.5" r="2.5" fill="black" /><circle cx="8.5" cy="9.5" r="1.8" fill="black" /></mask><circle cx="12" cy="12" r="10" mask="url(#moon-mask)" /></svg>
+    </button>
+  </div>
+
+  <!-- UPDATING BANNER -->
+  <div id="update-banner" class="warning-banner" style="display: none;">
+    <svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="2" fill="none"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-10.27l-3.42 4.4"/></svg>
+    <div>
+      <strong>SCHEDULE UPDATING...</strong>
+      New bookings have been detected. Showing the cached version instantly while the live data is retrieved...
+    </div>
+  </div>
+
+  <!-- SEARCH INTERFACE -->
+  <div class="search-box">
+    <h2><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Search Slot Availability</h2>
+    <div class="search-controls">
+      <div class="control-group">
+        <label>Scanner</label>
+        <select id="search-scanner" onchange="performSearch()">
+          <option value="ALL">All Scanners</option>
+          <option value="HM1">HM1</option><option value="HM2">HM2</option><option value="HM3">HM3</option><option value="HM4">HM4</option>
+          <option value="NM1">NM1</option><option value="NM2">NM2</option><option value="NM3">NM3</option><option value="WM">WM</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Day</label>
+        <select id="search-day" onchange="performSearch()">
+          <option value="all">Any Day</option>
+          <option value="mon">Monday</option><option value="tue">Tuesday</option><option value="wed">Wednesday</option>
+          <option value="thu">Thursday</option><option value="fri">Friday</option><option value="sat">Saturday</option><option value="sun">Sunday</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Time Between</label>
+        <input type="time" id="search-start" value="07:00" onchange="performSearch()" oninput="performSearch()">
+      </div>
+      <div class="control-group">
+        <label>And</label>
+        <input type="time" id="search-end" value="21:00" onchange="performSearch()" oninput="performSearch()">
+      </div>
+      <button type="button" id="reset-btn" class="reset-btn" onclick="resetSearch()">Clear Filters</button>
+    </div>
+    <div id="search-status">Showing all available slots. Modify filters above to search.</div>
+  </div>
+
+  <div id="loadingState">Connecting to servers...</div>
+
+  <!-- DOM CONTAINERS -->
+  <div class="index" id="index-top" style="display:none;">
+    <h2>Scan Categories</h2>
+    <ul id="index-list"></ul>
+  </div>
+
+  <div id="scans-container" style="display:none;"></div>
+
+</div>
+
+<!-- JAVASCRIPT ENGINE -->
+<script>
+  // EXACT TARGET ACTIVITIES THAT COMPRISE THE "MONITORING GROUP"
+  const MONITORING_GROUPS = [
+      'Cardiac - STRESS or SUPERVISED',
+      'GA',
+      'PPM (Pacemakers)',
+      'PPM 31/62',
+      'PPM Urgent Inpatient'
+  ];
+  
+  const DAY_ORDER = { "Monday":1, "Tuesday":2, "Wednesday":3, "Thursday":4, "Friday":5, "Saturday":6, "Sunday":7 };
+
+  window.addEventListener('DOMContentLoaded', () => {
+      document.body.classList.remove('preload');
+      google.script.run.withSuccessHandler(handleInitialResponse).getInitialDecoderData();
+  });
+
+  function handleInitialResponse(response) {
+      if (response.status === "empty") {
+          document.getElementById('loadingState').innerHTML = "Generating summary cache for the first time. This may take up to 60 seconds...";
+          google.script.run.withSuccessHandler(data => {
+              document.getElementById('loadingState').style.display = 'none';
+              buildUI(data);
+          }).generateNewCache();
+      } else {
+          document.getElementById('loadingState').style.display = 'none';
+          buildUI(response.data);
+
+          if (response.status === "outdated") {
+              document.getElementById('update-banner').style.display = 'flex';
+              google.script.run.withSuccessHandler(freshData => {
+                  document.getElementById('update-banner').style.display = 'none';
+                  document.getElementById('scans-container').innerHTML = '';
+                  document.getElementById('index-list').innerHTML = '';
+                  buildUI(freshData);
+                  performSearch(); 
+              }).generateNewCache();
+          }
+      }
+  }
+
+  function sanitizeId(name) { return 'scan-' + name.toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+  function buildUI(allSlots) {
+      let activities = {};
+      allSlots.forEach(slot => {
+          if (!activities[slot.activity]) activities[slot.activity] = { color: slot.color, scanners: {} };
+          if (!activities[slot.activity].scanners[slot.scanner]) activities[slot.activity].scanners[slot.scanner] = [];
+          activities[slot.activity].scanners[slot.scanner].push(slot);
+      });
+
+      const indexList = document.getElementById('index-list');
+      const scansContainer = document.getElementById('scans-container');
+      const sortedActivityNames = Object.keys(activities).sort();
+
+      // --- CREATE THE MASTER MONITORING WRAPPER ---
+      const monitoringWrapper = document.createElement('div');
+      monitoringWrapper.id = 'monitoring-group-wrapper';
+      monitoringWrapper.className = 'monitoring-wrapper';
+      monitoringWrapper.style.display = 'none';
+      monitoringWrapper.innerHTML = `
+          <div class="monitoring-header">
+              <svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="2" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <div>These activities all require the use of patient monitoring - please check that there are no conflicts when booking</div>
+          </div>
+          <div id="monitoring-scans"></div>
+      `;
+      // Pre-append wrapper to top of scans container
+      scansContainer.appendChild(monitoringWrapper);
+      const monitoringScans = monitoringWrapper.querySelector('#monitoring-scans');
+
+      sortedActivityNames.forEach(actName => {
+          const actData = activities[actName];
+          const sectionId = sanitizeId(actName);
+          
+          // Check if this activity belongs in the monitoring group container
+          const isMonitoring = MONITORING_GROUPS.some(m => actName.trim().toUpperCase() === m.toUpperCase());
+
+          // Build Index Item
+          let li = document.createElement('li');
+          li.innerHTML = `<a href="#${sectionId}"><span class="color-dot" style="background-color:${actData.color}; border-color:${actData.color}"></span>${actName}</a>`;
+          
+          if (isMonitoring) {
+              li.querySelector('a').addEventListener('click', (e) => {
+                  e.preventDefault(); 
+                  activateMonitoringView(); 
+              });
+          }
+          indexList.appendChild(li);
+
+          // Build Scan Section Card
+          let section = document.createElement('div');
+          section.id = sectionId;
+          section.className = 'scan-section';
+          section.style.borderLeftColor = actData.color;
+          section.style.backgroundColor = (document.documentElement.getAttribute('data-theme') === 'dark') ? 'var(--surface-color)' : actData.color + '15'; 
+          
+          let html = `<h3><span class="color-dot" style="background-color:${actData.color}; border-color:${actData.color}"></span> ${actName}</h3><ul>`;
+
+          const sortedScanners = Object.keys(actData.scanners).sort();
+          sortedScanners.forEach(scanner => {
+              let scannerSlots = actData.scanners[scanner];
+              let byDay = {};
+              scannerSlots.forEach(s => {
+                  if(!byDay[s.day]) byDay[s.day] = [];
+                  byDay[s.day].push(`${s.startTime} - ${s.endTime}${s.note ? ' <small>(' + s.note + ')</small>' : ''}`);
+              });
+
+              let dayStrings = [];
+              Object.keys(byDay).sort((a,b) => DAY_ORDER[a] - DAY_ORDER[b]).forEach(day => {
+                  let shortDay = day.substring(0,3).toLowerCase();
+                  dayStrings.push(`<span class="${shortDay}">${day}</span> ${byDay[day].join(', ')}`);
+              });
+
+              html += `<li><strong>${scanner}:</strong> ${dayStrings.join('; ')}</li>`;
+          });
+
+          html += `</ul><a href="#index-top" class="back-to-top">↑ Back to Index</a>`;
+          section.innerHTML = html;
+          
+          // Intercept Back-to-Top behavior for grouped sections
+          if(isMonitoring) {
+              section.querySelector('.back-to-top').addEventListener('click', (e) => {
+                  e.preventDefault(); 
+                  resetSearch();      
+                  document.getElementById('index-top').scrollIntoView({behavior: 'smooth', block: 'start'});
+              });
+              monitoringScans.appendChild(section);
+          } else {
+              scansContainer.appendChild(section);
+          }
+      });
+
+      // Show wrapper if it successfully collected any targets
+      if (monitoringScans.children.length > 0) {
+          monitoringWrapper.style.display = 'block';
+      }
+
+      document.getElementById('index-top').style.display = 'block';
+      document.getElementById('scans-container').style.display = 'block';
+  }
+
+  function activateMonitoringView() {
+      resetSearch(true); 
+      document.getElementById('reset-btn').style.display = 'block';
+      
+      // Hide all standard isolated sections
+      document.querySelectorAll('#scans-container > .scan-section').forEach(sec => {
+          sec.style.display = 'none';
+      });
+
+      // Ensure the entire monitoring block and its children are fully visible
+      const wrapper = document.getElementById('monitoring-group-wrapper');
+      if (wrapper) {
+          wrapper.style.display = 'block';
+          wrapper.querySelectorAll('.scan-section').forEach(sec => sec.style.display = 'block');
+      }
+
+      // Isolate Index Links to only show monitoring variants
+      const targetIds = MONITORING_GROUPS.map(name => sanitizeId(name));
+      document.querySelectorAll('.index li').forEach(indexItem => {
+          const link = indexItem.querySelector('a');
+          if (link) {
+              const targetId = link.getAttribute('href').substring(1);
+              indexItem.style.display = targetIds.includes(targetId) ? '' : 'none';
+          }
+      });
+
+      const status = document.getElementById('search-status');
+      status.style.color = '#dd6b20';
+      status.innerHTML = `Showing Monitoring Group. Please verify availability across these lists.`;
+
+      setTimeout(() => {
+          if (wrapper) wrapper.scrollIntoView({behavior: 'smooth', block: 'start'});
+      }, 50);
+  }
+
+  function parseTime(timeStr) {
+      if (!timeStr) return 0;
+      const parts = timeStr.split(':');
+      return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  }
+
+  function getDaysFromText(text) {
+      let t = text.toLowerCase();
+      let days = new Set();
+      if (t.includes('mon')) days.add('mon'); if (t.includes('tue')) days.add('tue');
+      if (t.includes('wed')) days.add('wed'); if (t.includes('thu')) days.add('thu');
+      if (t.includes('fri')) days.add('fri'); if (t.includes('sat')) days.add('sat');
+      if (t.includes('sun')) days.add('sun');
+      return days;
+  }
+
+  function getRanges(text) {
+      let ranges = [];
+      const rangeRegex = /(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/g;
+      let match;
+      while ((match = rangeRegex.exec(text)) !== null) {
+          ranges.push({ start: parseTime(match[1]), end: parseTime(match[2]) });
+      }
+      return ranges;
+  }
+
+  function performSearch() {
+      const scannerFilter = document.getElementById('search-scanner').value;
+      const dayFilter = document.getElementById('search-day').value;
+      const startInput = document.getElementById('search-start').value;
+      const endInput = document.getElementById('search-end').value;
+
+      const startVal = startInput ? startInput.substring(0, 5) : "07:00";
+      const endVal = endInput ? endInput.substring(0, 5) : "21:00";
+      const searchStart = parseTime(startVal);
+      const searchEnd = parseTime(endVal);
+
+      const isDefault = (scannerFilter === 'ALL' && dayFilter === 'all' && startVal === '07:00' && endVal === '21:00');
+      document.getElementById('reset-btn').style.display = isDefault ? 'none' : 'block';
+
+      let visibleSections = 0; let visibleItems = 0;
+      const sections = document.querySelectorAll('.scan-section');
+      
+      sections.forEach(section => {
+          let sectionHasVisibleItem = false;
+          const items = section.querySelectorAll('li');
+          
+          items.forEach(item => {
+              const strongTag = item.querySelector('strong');
+              if (!strongTag) return;
+              
+              const scannerText = strongTag.textContent.replace(':', '').trim();
+              const htmlContent = item.innerHTML; 
+              const chunks = htmlContent.split(';');
+              let itemMatches = false;
+
+              for (let chunk of chunks) {
+                  let text = chunk.replace(/<[^>]*>?/gm, ''); 
+                  let scannerMatch = (scannerFilter === 'ALL' || scannerText.includes('All Scanners') || scannerText.includes(scannerFilter));
+                  let days = getDaysFromText(text);
+                  let dayMatch = (dayFilter === 'all' || days.size === 0 || days.has(dayFilter));
+                  
+                  let ranges = getRanges(text);
+                  let timeMatch = false;
+                  
+                  if (ranges.length === 0) timeMatch = true; 
+                  else {
+                      for (let r of ranges) {
+                          if (Math.max(searchStart, r.start) < Math.min(searchEnd, r.end)) {
+                              timeMatch = true; break;
+                          }
+                      }
+                  }
+                  
+                  if (scannerMatch && dayMatch && timeMatch) {
+                      itemMatches = true; break; 
+                  }
+              }
+
+              if (itemMatches) {
+                  item.style.display = '';
+                  sectionHasVisibleItem = true;
+                  visibleItems++;
+              } else item.style.display = 'none';
+          });
+
+          if (sectionHasVisibleItem) {
+              section.style.display = '';
+              visibleSections++;
+          } else section.style.display = 'none';
+      });
+
+      // Ensure Monitoring Wrapper collapses if all nested activities are hidden via Search Filters
+      const wrapper = document.getElementById('monitoring-group-wrapper');
+      if (wrapper) {
+          let hasVisibleChildren = false;
+          wrapper.querySelectorAll('.scan-section').forEach(sec => {
+              if (sec.style.display !== 'none') hasVisibleChildren = true;
+          });
+          wrapper.style.display = hasVisibleChildren ? 'block' : 'none';
+      }
+
+      document.querySelectorAll('.index li').forEach(indexItem => indexItem.style.display = '');
+
+      const status = document.getElementById('search-status');
+      if (isDefault) {
+          status.style.color = 'var(--text-muted)';
+          status.innerHTML = `Showing all available slots. Modify filters above to search.`;
+      } else if (visibleItems === 0) {
+          status.style.color = '#e53e3e';
+          status.innerHTML = `No matching slots found for these criteria.`;
+      } else {
+          status.style.color = 'var(--primary)';
+          status.innerHTML = `Showing ${visibleItems} matching slot(s) across ${visibleSections} scan category/categories.`;
+      }
+  }
+
+  function resetSearch(silent = false) {
+      document.getElementById('search-scanner').value = 'ALL';
+      document.getElementById('search-day').value = 'all';
+      document.getElementById('search-start').value = '07:00';
+      document.getElementById('search-end').value = '21:00';
+      if(!silent) performSearch(); 
+  }
+
+  function toggleTheme() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      localStorage.setItem('theme', isDark ? 'light' : 'dark');
+      
+      document.querySelectorAll('.scan-section').forEach(sec => {
+          if(!isDark) { sec.style.backgroundColor = 'var(--surface-color)'; }
+          else { 
+             let color = sec.style.borderLeftColor;
+             sec.style.backgroundColor = color ? color.replace(')', ', 0.15)').replace('rgb', 'rgba') : 'var(--surface-color)';
+          }
+      });
+  }
+</script>
+</body>
+</html>
