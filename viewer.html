@@ -13,7 +13,6 @@
       })();
     </script>
     <style>
-        /* --- BASE VARIABLES & THEMING --- */
         :root { 
             --bg: #f4f7fb; --surface: #ffffff; --text: #2d3748; --primary: #3182ce; --border: #e2e8f0; --hover: #ebf8ff;
             --row-height: 45px;
@@ -23,7 +22,6 @@
         [data-theme="dark"] { --bg: #1a202c; --surface: #2d3748; --text: #e2e8f0; --primary: #63b3ed; --border: #4a5568; --hover: #2c5282;}
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; transition: 0.3s; }
         
-        /* --- NAVIGATION --- */
         .nav-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
         .nav-btn { padding: 12px 20px; border: none; border-radius: 8px; background: var(--surface); color: var(--text); font-weight: bold; cursor: pointer; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: 0.2s; }
         .nav-btn:hover, .nav-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
@@ -39,53 +37,31 @@
         [data-theme="dark"] .sun-icon { opacity: 0; transform: rotate(-90deg) scale(0.5); color: #e53e3e; }
         [data-theme="dark"] .moon-icon { opacity: 1; transform: rotate(0deg) scale(1); }
         
-        /* --- VIEW CONTROLS (SLIDERS & RESOLUTION) --- */
         .view-controls { display: flex; align-items: center; gap: 12px; background: var(--surface); padding: 8px 15px; border-radius: 8px; border: 1px solid var(--border); font-weight: bold; margin-left: auto; }
         .view-controls input[type="range"] { width: 60px; cursor: pointer; }
         .view-controls select { border: none; background: transparent; font-weight: bold; color: var(--primary); outline: none; cursor: pointer; font-size: 1em; }
         .divider { width: 1px; height: 20px; background: var(--border); margin: 0 5px; }
 
-        /* --- HEADERS --- */
         .scanner-header { background: var(--surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; }
         .scanner-header h2 { margin: 0 0 10px 0; color: var(--primary); display: flex; align-items: center; gap: 10px; }
         .scanner-header p { margin: 4px 0; font-size: 0.9em; font-weight: bold; }
         .readonly-badge { background: #e2e8f0; color: #4a5568; font-size: 0.5em; padding: 4px 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* --- OVERLAY CALENDAR GRID --- */
         table { width: var(--table-width); margin: 0 auto; border-collapse: collapse; background: var(--surface); table-layout: fixed; transition: width 0.1s; }
         th { background: var(--hover); position: sticky; top: 0; z-index: 50; text-align: center; padding: 8px; border: 1px solid var(--border); }
-        
         th.time-header { width: 65px; text-align: left; }
         th:not(.time-header) { width: calc((100% - 65px) / 7); }
 
         tr { height: var(--row-height); transition: height 0.1s; } 
         td { border: 1px solid var(--border); padding: 0; position: relative; vertical-align: top; }
         
-        .time-col { font-weight: bold; background: var(--hover); text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+        .time-col { background: var(--hover); border-bottom: 1px solid var(--border); padding: 0 !important; vertical-align: top; }
+        .row-strut { height: var(--row-height); min-height: var(--row-height); max-height: var(--row-height); box-sizing: border-box; display: flex; align-items: flex-start; justify-content: left; padding-top: 4px; padding-left: 6px; font-weight: bold; overflow: hidden; }
         
-        /* --- DYNAMIC SLOT EVENTS (READ-ONLY CURSORS) --- */
-        .slot-event { 
-            position: absolute; border-radius: 3px; padding: 4px 6px; box-sizing: border-box; 
-            overflow: hidden; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.2); 
-            cursor: default; /* Read-Only pointer */
-            text-align: left; display: flex; flex-direction: column; border: 1px solid rgba(0,0,0,0.1);
-        }
-        .slot-event:hover { 
-            z-index: 1000 !important; 
-            box-shadow: 0 6px 15px rgba(0,0,0,0.4); 
-            min-height: max-content !important; 
-            overflow: visible;
-        }
+        .slot-event { position: absolute; border-radius: 3px; padding: 4px 6px; box-sizing: border-box; overflow: hidden; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: default; text-align: left; display: flex; flex-direction: column; border: 1px solid rgba(0,0,0,0.1); }
+        .slot-event:hover { z-index: 1000 !important; box-shadow: 0 6px 15px rgba(0,0,0,0.4); min-height: max-content !important; overflow: visible; }
 
-        .time-badge { 
-            display: inline-block; width: fit-content; align-self: flex-start;
-            background: rgba(0, 0, 0, 0.75); color: #ffffff !important; 
-            padding: 1px 4px; border-radius: 3px 0 4px 0; 
-            font-size: 0.75em; font-weight: normal; 
-            font-family: 'Arial Narrow', 'Helvetica Condensed', sans-serif; font-stretch: condensed;
-            letter-spacing: -0.4px; margin: -4px 0 2px -6px; line-height: 1.1; box-shadow: 1px 1px 2px rgba(0,0,0,0.15);
-            white-space: nowrap;
-        }
+        .time-badge { display: inline-block; width: fit-content; align-self: flex-start; background: rgba(0, 0, 0, 0.75); color: #ffffff !important; padding: 1px 4px; border-radius: 3px 0 4px 0; font-size: 0.75em; font-weight: normal; font-family: 'Arial Narrow', 'Helvetica Condensed', sans-serif; font-stretch: condensed; letter-spacing: -0.4px; margin: -4px 0 2px -6px; line-height: 1.1; box-shadow: 1px 1px 2px rgba(0,0,0,0.15); white-space: nowrap; }
 
         .slot-event.short-slot { flex-direction: row; align-items: center; padding: 2px 4px; gap: 4px; }
         .slot-event.short-slot .time-badge { margin: -2px 0 -2px -4px; padding: 1px 3px; font-size: 0.7em; }
@@ -97,9 +73,6 @@
 
         .warning-banner { background: #feebc8; color: #c05621; padding: 15px; border-radius: 8px; border-left: 5px solid #ed8936; margin-bottom: 20px; display: none; font-weight: bold; }
 
-        /* =========================================
-           A4 PORTRAIT PRINT OPTIMIZATION
-           ========================================= */
         @media print {
             @page { size: A4 portrait; margin: 5mm; }
             html, body { height: 100vh !important; width: 100vw !important; margin: 0 !important; padding: 0 !important; background: white !important; color: black !important; overflow: hidden !important; }
@@ -109,6 +82,7 @@
             .scanner-header p { font-size: 9pt !important; margin: 0 !important; line-height: 1.1 !important; }
             .readonly-badge { display: none !important; }
             #gridContainer { height: auto !important; max-height: none !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; }
+            
             table { width: 100% !important; height: 240mm !important; max-height: 240mm !important; table-layout: fixed; border-collapse: collapse; margin: 0 !important; border: 2px solid #000 !important; }
             tr { height: calc(240mm / var(--row-count)) !important; overflow: hidden !important; }
             th.time-header { width: 35px !important; }
@@ -116,7 +90,9 @@
             th { position: static !important; font-size: 8.5pt !important; padding: 1px !important; background-color: #f0f0f0 !important; color: #000 !important; height: 4mm !important; border: 1px solid #000 !important; }
             td { border: 1px solid #000 !important; padding: 0 !important; vertical-align: top !important; box-sizing: border-box !important;}
             .time-col { background-color: #f0f0f0 !important; color: #000 !important; font-size: 8pt !important; border: 1px solid #000 !important; vertical-align: top !important; padding: 1px 3px !important; text-align: left !important; line-height: 1 !important; }
+            .row-strut { padding-top: 1px !important; padding-left: 2px !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+            
             .slot-event { box-shadow: none !important; border: 1px solid rgba(0,0,0,0.8) !important; padding: 1px 2px !important; box-sizing: border-box !important;}
             .time-badge { display: none !important; } 
             .slot-event span.slot-act { font-size: 8.5pt !important; font-weight: bold !important; line-height: 1 !important; white-space: normal !important; display: block; margin-bottom: 1px; }
@@ -128,8 +104,6 @@
     </style>
 </head>
 <body>
-
-    <!-- --- NAVIGATION BAR --- -->
     <div class="nav-bar" id="navBar">
         <button class="nav-btn" onclick="loadScanner('HM1')">HM1</button>
         <button class="nav-btn" onclick="loadScanner('HM2')">HM2</button>
@@ -162,7 +136,6 @@
         
         <button class="nav-btn search-btn" onclick="openSearch()">🔍 Summary Search</button>
         <button class="nav-btn print-btn" onclick="printProforma()">🖨️ Print A4</button>
-        
         <button type="button" class="theme-btn" onclick="toggleTheme()" title="Toggle Dark Mode">
             <svg class="sun-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
             <svg class="moon-icon" viewBox="0 0 24 24" fill="currentColor"><mask id="moon-mask"><rect x="0" y="0" width="24" height="24" fill="white" /><circle cx="15.5" cy="14.5" r="2.5" fill="black" /><circle cx="8.5" cy="9.5" r="1.8" fill="black" /></mask><circle cx="12" cy="12" r="10" mask="url(#moon-mask)" /></svg>
@@ -187,12 +160,13 @@
     // ==========================================
     // ⚠️ PASTE YOUR DEPLOYED GOOGLE WEB APP URL HERE:
     // ==========================================
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbzuv2hdxJSRhWS_TWJ3gq5q4HQKcyB4O1PHlIL_tp5tfq9VhPoBNWbhKlMaZM6ABkBo/exec";
+    const GAS_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
 
     async function callBackend(action, payload = null) {
         try {
             let response = await fetch(GAS_URL, {
                 method: 'POST',
+                redirect: 'follow', // Ensures Google redirects don't break the fetch
                 body: JSON.stringify({ action: action, payload: payload }),
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
             });
@@ -217,6 +191,11 @@
     function formatTime(mins) {
         let h = Math.floor(mins/60); let m = mins%60;
         return (h<10?'0'+h:h) + ':' + (m<10?'0'+m:m);
+    }
+    function timeToMins(timeStr) {
+        if (!timeStr) return 0;
+        let p = timeStr.split(':');
+        return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
     }
 
     function updateGridSizes() {
@@ -253,7 +232,6 @@
         let oldRes = document.getElementById('resSelect').value;
         document.getElementById('resSelect').value = "15";
         renderGrid();
-        
         setTimeout(() => {
             window.print();
             document.getElementById('resSelect').value = oldRes;
@@ -326,12 +304,11 @@
                 
                 let tdTime = document.createElement('td');
                 tdTime.className = 'time-col';
-                tdTime.innerText = showLabel ? timeStr : '';
+                tdTime.innerHTML = `<div class="row-strut">${showLabel ? timeStr : '&nbsp;'}</div>`;
                 tr.appendChild(tdTime);
 
                 for (let day of DAYS) {
                     let td = document.createElement('td');
-                    td.className = 'grid-cell';
                     td.id = `cell-${day}-${r}`; 
                     tr.appendChild(td);
                 }
