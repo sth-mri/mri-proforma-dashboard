@@ -67,7 +67,7 @@
         .slot-event { 
             position: absolute; border-radius: 3px; padding: 4px 6px; box-sizing: border-box; 
             overflow: hidden; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.2); 
-            cursor: default; /* REMOVED POINTER CURSOR */
+            cursor: default; /* Read-Only pointer */
             text-align: left; display: flex; flex-direction: column; border: 1px solid rgba(0,0,0,0.1);
         }
         .slot-event:hover { 
@@ -218,11 +218,6 @@
         let h = Math.floor(mins/60); let m = mins%60;
         return (h<10?'0'+h:h) + ':' + (m<10?'0'+m:m);
     }
-    function timeToMins(timeStr) {
-        if (!timeStr) return 0;
-        let p = timeStr.split(':');
-        return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
-    }
 
     function updateGridSizes() {
         let rowH = document.getElementById('rowHeightSlider').value;
@@ -235,7 +230,6 @@
     window.onload = () => {
         loadScanner('HM1');
 
-        // Auto-refresh data silently every 60 seconds
         setInterval(() => {
             if (currentScanner) {
                 callBackend('getScannerSchedule', currentScanner)
@@ -277,4 +271,129 @@
         });
 
         document.getElementById('headerArea').style.display = 'none';
-        document.getElementById('scheduleBody').innerHTML = '<tr><td colspan="8" style="padding:20px;">Loading data from Google Sheet
+        document.getElementById('scheduleBody').innerHTML = '<tr><td colspan="8" style="padding:20px;">Loading data from Google Sheets...</td></tr>';
+
+        callBackend('getScannerSchedule', scanner)
+            .then(data => {
+                currentHeaders = data.headers;
+                currentSlots = data.slots;
+                currentDayInfo = data.dayInfo;
+                renderGrid();
+            })
+            .catch(error => {
+                alert("Error loading scanner data: \n" + error.message);
+                document.getElementById('scheduleBody').innerHTML = '<tr><td colspan="8" style="padding:20px; color:red;">Failed to load data.</td></tr>';
+            });
+    }
+
+    function renderGrid() {
+        try {
+            if (!currentScanner) return; 
+
+            let displayResMins = parseInt(document.getElementById('resSelect').value);
+            let rowCount = TOTAL_DAY_MINS / displayResMins;
+            
+            document.documentElement.style.setProperty('--row-count', rowCount);
+            
+            const headerDiv = document.getElementById('headerArea');
+            headerDiv.style.display = 'block';
+            
+            let headerHtml = `<h2 style="margin-top:0; margin-bottom:5px;">${currentScanner} <span class="readonly-badge">Viewer Mode</span></h2>`;
+            if (Array.isArray(currentHeaders)) {
+                currentHeaders.forEach(h => {
+                    let val = h.text ? h.text.toString().trim() : "";
+                    if (val !== "" && val !== currentScanner) {
+                        let fontColor = (h.color === '#000000' || h.color === '#ffffff') ? 'inherit' : h.color;
+                        headerHtml += `<p style="margin:2px 0; font-size:0.9em; font-weight:bold; color:${fontColor};">${val}</p>`;
+                    }
+                });
+            }
+            headerDiv.innerHTML = headerHtml;
+
+            const tbody = document.getElementById('scheduleBody');
+            tbody.innerHTML = '';
+
+            for (let r = 0; r < rowCount; r++) {
+                let tr = document.createElement('tr');
+                let bucketStartMins = START_MINS + (r * displayResMins);
+                let timeStr = formatTime(bucketStartMins);
+                
+                let showLabel = false;
+                if (displayResMins === 5 && (r % 6 === 0)) showLabel = true;      
+                else if (displayResMins === 10 && (r % 3 === 0)) showLabel = true; 
+                else if (displayResMins === 15 && (r % 2 === 0)) showLabel = true; 
+                else if (displayResMins >= 30) showLabel = true;                   
+                
+                let tdTime = document.createElement('td');
+                tdTime.className = 'time-col';
+                tdTime.innerText = showLabel ? timeStr : '';
+                tr.appendChild(tdTime);
+
+                for (let day of DAYS) {
+                    let td = document.createElement('td');
+                    td.className = 'grid-cell';
+                    td.id = `cell-${day}-${r}`; 
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+
+            for (let slot of currentSlots) {
+                let startMins = timeToMins(slot.startTime);
+                let endMins = timeToMins(slot.endTime);
+                
+                if (endMins > START_MINS + TOTAL_DAY_MINS) endMins = START_MINS + TOTAL_DAY_MINS;
+                
+                let rowIndex = Math.floor((startMins - START_MINS) / displayResMins);
+                if (rowIndex < 0 || rowIndex >= rowCount) continue; 
+                
+                let offsetMins = (startMins - START_MINS) % displayResMins;
+                let topPct = (offsetMins / displayResMins) * 100;
+                let durationMins = endMins - startMins;
+                let heightPct = (durationMins / displayResMins) * 100;
+                
+                let endRowIndex = Math.floor((endMins - 1 - START_MINS) / displayResMins);
+                let bordersCrossed = endRowIndex - rowIndex;
+                if (bordersCrossed < 0) bordersCrossed = 0;
+                
+                let tdAnchor = document.getElementById(`cell-${slot.day}-${rowIndex}`);
+                if (!tdAnchor) continue;
+                
+                let div = document.createElement('div');
+                div.className = 'slot-event';
+                div.style.top = topPct + '%';
+                div.style.height = `calc(${heightPct}% + ${bordersCrossed}px)`;
+                div.style.left = `calc(${slot.leftPct}% + 1px)`;
+                div.style.width = `calc(${slot.widthPct}% - 2px)`;
+                div.style.backgroundColor = slot.color;
+                
+                if (durationMins <= 10) div.classList.add('short-slot');
+                
+                let actFmt = slot.actFormat || { color: "#000000", size: 12, bold: true, italic: false };
+                let noteFmt = slot.noteFormat || { color: "#ff0000", size: 12, bold: false, italic: false };
+                
+                let timeHtml = `<div class="time-badge">${slot.startTime} - ${slot.endTime}</div>`;
+                let actHtml = `<span class="slot-act" style="color:${actFmt.color}; font-size:${actFmt.size}pt; font-weight:${actFmt.bold?'bold':'normal'}; font-style:${actFmt.italic?'italic':'normal'}; line-height: 1.1;">${slot.activity}</span>`;
+                let noteHtml = slot.note ? `<div class="slot-note" style="color:${noteFmt.color}; font-size:${noteFmt.size}pt; font-weight:${noteFmt.bold?'bold':'normal'}; font-style:${noteFmt.italic?'italic':'normal'}; white-space:pre-wrap; margin-top:2px; line-height: 1.1;">${slot.note}</div>` : '';
+                
+                div.innerHTML = timeHtml + actHtml + noteHtml;
+                tdAnchor.appendChild(div);
+            }
+        } catch (error) {
+            alert("Error rendering grid: " + error.message);
+            console.error(error);
+        }
+    }
+
+    function openSearch() {
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        if(currentScanner) {
+            document.querySelectorAll('.nav-btn').forEach(b => {
+                if (b.innerText.trim() === currentScanner) b.classList.add('active');
+            });
+        }
+        window.open("decoder.html", "_blank");
+    }
+</script>
+</body>
+</html>
