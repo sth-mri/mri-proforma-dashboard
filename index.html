@@ -23,7 +23,6 @@
         [data-theme="dark"] { --bg: #1a202c; --surface: #2d3748; --text: #e2e8f0; --primary: #63b3ed; --border: #4a5568; --hover: #2c5282;}
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; transition: 0.3s; }
         
-        /* --- NAVIGATION --- */
         .nav-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
         .nav-btn { padding: 12px 20px; border: none; border-radius: 8px; background: var(--surface); color: var(--text); font-weight: bold; cursor: pointer; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: 0.2s; }
         .nav-btn:hover, .nav-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
@@ -39,21 +38,17 @@
         [data-theme="dark"] .sun-icon { opacity: 0; transform: rotate(-90deg) scale(0.5); color: #e53e3e; }
         [data-theme="dark"] .moon-icon { opacity: 1; transform: rotate(0deg) scale(1); }
         
-        /* --- VIEW CONTROLS (SLIDERS & RESOLUTION) --- */
         .view-controls { display: flex; align-items: center; gap: 12px; background: var(--surface); padding: 8px 15px; border-radius: 8px; border: 1px solid var(--border); font-weight: bold; margin-left: auto; }
         .view-controls input[type="range"] { width: 60px; cursor: pointer; }
         .view-controls select { border: none; background: transparent; font-weight: bold; color: var(--primary); outline: none; cursor: pointer; font-size: 1em; }
         .divider { width: 1px; height: 20px; background: var(--border); margin: 0 5px; }
 
-        /* --- HEADERS --- */
         .scanner-header { background: var(--surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; }
         .scanner-header h2 { margin: 0 0 10px 0; color: var(--primary); }
         .scanner-header p { margin: 4px 0; font-size: 0.9em; font-weight: bold; }
 
-        /* --- OVERLAY CALENDAR GRID --- */
         table { width: var(--table-width); margin: 0 auto; border-collapse: collapse; background: var(--surface); table-layout: fixed; transition: width 0.1s; }
         th { background: var(--hover); position: sticky; top: 0; z-index: 50; text-align: center; padding: 8px; border: 1px solid var(--border); }
-        
         th.time-header { width: 65px; text-align: left; }
         th:not(.time-header) { width: calc((100% - 65px) / 7); }
 
@@ -62,30 +57,13 @@
         .grid-cell { cursor: pointer; transition: 0.2s; }
         .grid-cell:hover { background: var(--hover); }
         
-        .time-col { font-weight: bold; background: var(--hover); text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+        .time-col { background: var(--hover); border-bottom: 1px solid var(--border); padding: 0 !important; vertical-align: top; }
+        .row-strut { height: var(--row-height); min-height: var(--row-height); max-height: var(--row-height); box-sizing: border-box; display: flex; align-items: flex-start; justify-content: left; padding-top: 4px; padding-left: 6px; font-weight: bold; overflow: hidden; }
         
-        /* --- DYNAMIC SLOT EVENTS --- */
-        .slot-event { 
-            position: absolute; border-radius: 3px; padding: 4px 6px; box-sizing: border-box; 
-            overflow: hidden; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: pointer;
-            text-align: left; display: flex; flex-direction: column; border: 1px solid rgba(0,0,0,0.1);
-        }
-        .slot-event:hover { 
-            z-index: 1000 !important; 
-            box-shadow: 0 6px 15px rgba(0,0,0,0.4); 
-            min-height: max-content !important; 
-            overflow: visible;
-        }
+        .slot-event { position: absolute; border-radius: 3px; padding: 4px 6px; box-sizing: border-box; overflow: hidden; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: pointer; text-align: left; display: flex; flex-direction: column; border: 1px solid rgba(0,0,0,0.1); }
+        .slot-event:hover { z-index: 1000 !important; box-shadow: 0 6px 15px rgba(0,0,0,0.4); min-height: max-content !important; overflow: visible; }
 
-        .time-badge { 
-            display: inline-block; width: fit-content; align-self: flex-start;
-            background: rgba(0, 0, 0, 0.75); color: #ffffff !important; 
-            padding: 1px 4px; border-radius: 3px 0 4px 0; 
-            font-size: 0.75em; font-weight: normal; 
-            font-family: 'Arial Narrow', 'Helvetica Condensed', sans-serif; font-stretch: condensed;
-            letter-spacing: -0.4px; margin: -4px 0 2px -6px; line-height: 1.1; box-shadow: 1px 1px 2px rgba(0,0,0,0.15);
-            white-space: nowrap;
-        }
+        .time-badge { display: inline-block; width: fit-content; align-self: flex-start; background: rgba(0, 0, 0, 0.75); color: #ffffff !important; padding: 1px 4px; border-radius: 3px 0 4px 0; font-size: 0.75em; font-weight: normal; font-family: 'Arial Narrow', 'Helvetica Condensed', sans-serif; font-stretch: condensed; letter-spacing: -0.4px; margin: -4px 0 2px -6px; line-height: 1.1; box-shadow: 1px 1px 2px rgba(0,0,0,0.15); white-space: nowrap; }
 
         .slot-event.short-slot { flex-direction: row; align-items: center; padding: 2px 4px; gap: 4px; }
         .slot-event.short-slot .time-badge { margin: -2px 0 -2px -4px; padding: 1px 3px; font-size: 0.7em; }
@@ -95,68 +73,55 @@
         .slot-event.short-slot:hover { flex-direction: column; align-items: flex-start; gap: 0; padding: 4px 6px; }
         .slot-event.short-slot:hover .time-badge { margin: -4px 0 2px -6px; padding: 1px 4px; font-size: 0.75em; }
 
-        /* --- MODAL --- */
         .modal-overlay { display: none; position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;}
         .modal { background: var(--surface); padding: 30px; border-radius: 12px; width: 100%; max-width: 550px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         .modal h3 { margin-top: 0; border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
-        
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9em; }
         .form-group select, .form-group input[type="text"], .form-group textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; background: var(--bg); color: var(--text); }
-        
         .format-toolbar { display: flex; gap: 5px; margin-bottom: 5px; align-items: center; background: var(--hover); padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border); }
         .format-toolbar button { background: var(--surface); border: 1px solid var(--border); cursor: pointer; padding: 4px 10px; border-radius: 4px; font-weight: bold; }
         .format-toolbar button.active { background: var(--primary); color: white; border-color: var(--primary); }
         .format-toolbar input[type="color"] { border: none; width: 30px; height: 26px; padding: 0; cursor: pointer; background: none; }
         .format-toolbar select { padding: 4px; width: auto; border: 1px solid var(--border); border-radius: 4px; }
-        
         .btn-row { display: flex; gap: 10px; margin-top: 20px; }
         .btn-primary { background: var(--primary); color: white; flex: 1; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s;}
         .btn-cancel { background: #a0aec0; color: white; flex: 1; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        
         .warning-banner { background: #feebc8; color: #c05621; padding: 15px; border-radius: 8px; border-left: 5px solid #ed8936; margin-bottom: 20px; display: none; font-weight: bold; }
 
-        /* =========================================
-           A4 PORTRAIT PRINT OPTIMIZATION
-           ========================================= */
         @media print {
-            @page { size: A4 portrait; margin: 5mm; }
-            html, body { height: 100vh !important; width: 100vw !important; margin: 0 !important; padding: 0 !important; background: white !important; color: black !important; overflow: hidden !important; }
+            @page { size: A4 portrait; margin: 8mm; }
+            html, body { background: white !important; padding: 0 !important; margin: 0 !important; color: black !important; overflow: visible !important; }
             .nav-bar, #monitoringWarning, .modal-overlay, .view-controls, .print-btn, .search-btn, .theme-btn { display: none !important; }
-            .scanner-header { height: 4vh !important; border: none !important; padding: 0 !important; margin: 0 0 1mm 0 !important; text-align: center; }
+            #gridContainer { max-height: none !important; overflow: visible !important; }
+            .scanner-header { border: none !important; padding: 0 !important; margin: 0 0 4mm 0 !important; text-align: center; }
             .scanner-header h2 { font-size: 14pt !important; margin: 0 !important; line-height: 1.1 !important; }
-            .scanner-header p { font-size: 9pt !important; margin: 0 !important; line-height: 1.1 !important; }
+            .scanner-header p { font-size: 10pt !important; margin: 0 !important; line-height: 1.1 !important; }
             
-            #gridContainer { height: auto !important; max-height: none !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; }
+            :root { --row-height: 4.8mm !important; }
+            table { width: 100% !important; table-layout: fixed; border-collapse: collapse; margin: 0 !important; border: 2px solid #000 !important; }
+            tr { height: var(--row-height) !important; }
+            th { position: static !important; font-size: 10pt !important; padding: 2px !important; background-color: #f0f0f0 !important; color: #000 !important; height: 6mm !important; border: 1px solid #000 !important; }
+            td { border: 1px solid #000 !important; padding: 0 !important; }
+            th.time-header { width: 45px !important; }
+            th:not(.time-header) { width: calc((100% - 45px) / 7) !important; }
+            .time-col { background-color: #f0f0f0 !important; color: #000 !important; font-size: 9pt !important; border: 1px solid #000 !important; }
+            .row-strut { padding-top: 1px !important; padding-left: 2px !important; }
             
-            /* HEIGHT GUARANTEE */
-            table { width: 100% !important; height: 240mm !important; max-height: 240mm !important; table-layout: fixed; border-collapse: collapse; margin: 0 !important; border: 2px solid #000 !important; }
-            tr { height: calc(240mm / var(--row-count)) !important; overflow: hidden !important; }
-            
-            th.time-header { width: 35px !important; }
-            th:not(.time-header) { width: calc((100% - 35px) / 7) !important; }
-            
-            th { position: static !important; font-size: 8.5pt !important; padding: 1px !important; background-color: #f0f0f0 !important; color: #000 !important; height: 4mm !important; border: 1px solid #000 !important; }
-            td { border: 1px solid #000 !important; padding: 0 !important; vertical-align: top !important; box-sizing: border-box !important;}
-            
-            .time-col { background-color: #f0f0f0 !important; color: #000 !important; font-size: 8pt !important; border: 1px solid #000 !important; vertical-align: top !important; padding: 1px 3px !important; text-align: left !important; line-height: 1 !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
             
-            .slot-event { box-shadow: none !important; border: 1px solid rgba(0,0,0,0.8) !important; padding: 1px 2px !important; box-sizing: border-box !important;}
-            .time-badge { display: none !important; }
+            .slot-event { box-shadow: none !important; border: 1px solid rgba(0,0,0,0.6) !important; padding: 0 2px !important; display: flex !important; }
+            .time-badge { display: none !important; } 
+            .slot-event span.slot-act { font-size: 10pt !important; line-height: 1 !important; display: inline-block !important; }
+            .slot-event div.slot-note { font-size: 10pt !important; line-height: 1 !important; display: inline-block !important; margin-top: 0 !important; margin-left: 4px !important; }
             
-            .slot-event span.slot-act { font-size: 8.5pt !important; font-weight: bold !important; line-height: 1 !important; white-space: normal !important; display: block; margin-bottom: 1px; }
-            .slot-event div.slot-note { font-size: 8pt !important; font-weight: normal !important; display: block !important; line-height: 1 !important; margin-top: 0 !important; }
-            
-            .slot-event.short-slot { flex-direction: row !important; white-space: nowrap !important; align-items: center; }
-            .slot-event.short-slot > .slot-note { display: none !important; }
+            .slot-event.short-slot { flex-direction: row !important; white-space: nowrap !important; overflow: hidden !important; align-items: flex-start !important; }
             .slot-event.short-slot span.slot-act { white-space: nowrap !important; }
+            .slot-event.short-slot div.slot-note { display: inline-block !important; margin-top: 0 !important; }
         }
     </style>
 </head>
 <body>
-
-    <!-- --- NAVIGATION BAR --- -->
     <div class="nav-bar" id="navBar">
         <button class="nav-btn" onclick="loadScanner('HM1')">HM1</button>
         <button class="nav-btn" onclick="loadScanner('HM2')">HM2</button>
@@ -189,7 +154,6 @@
         
         <button class="nav-btn search-btn" onclick="openSearch()">🔍 Summary Search</button>
         <button class="nav-btn print-btn" onclick="printProforma()">🖨️ Print A4</button>
-        
         <button type="button" class="theme-btn" onclick="toggleTheme()" title="Toggle Dark Mode">
             <svg class="sun-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
             <svg class="moon-icon" viewBox="0 0 24 24" fill="currentColor"><mask id="moon-mask"><rect x="0" y="0" width="24" height="24" fill="white" /><circle cx="15.5" cy="14.5" r="2.5" fill="black" /><circle cx="8.5" cy="9.5" r="1.8" fill="black" /></mask><circle cx="12" cy="12" r="10" mask="url(#moon-mask)" /></svg>
@@ -210,7 +174,7 @@
         </table>
     </div>
 
-    <!-- --- BOOK/EDIT MODAL --- -->
+    <!-- MODAL -->
     <div class="modal-overlay" id="editModal">
         <div class="modal">
             <h3 id="modalTitle">Book/Edit Slot</h3>
@@ -275,18 +239,18 @@
 
 <script>
     // ==========================================
-    // CONFIGURATION: PASTE YOUR DEPLOYED URL HERE
+    // ⚠️ PASTE YOUR DEPLOYED GOOGLE WEB APP URL HERE:
     // ==========================================
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbzuv2hdxJSRhWS_TWJ3gq5q4HQKcyB4O1PHlIL_tp5tfq9VhPoBNWbhKlMaZM6ABkBo/exec";
+    const GAS_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
 
     async function callBackend(action, payload = null) {
         try {
             let response = await fetch(GAS_URL, {
                 method: 'POST',
+                redirect: 'follow', // Ensures Google redirects don't break the fetch
                 body: JSON.stringify({ action: action, payload: payload }),
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
             });
-            
             let json = await response.json();
             if (json.status === "error") throw new Error(json.message);
             return json.data;
@@ -427,6 +391,7 @@
             })
             .catch(error => {
                 alert("Error loading scanner data: \n" + error.message);
+                document.getElementById('scheduleBody').innerHTML = '<tr><td colspan="8" style="padding:20px; color:red;">Failed to load data.</td></tr>';
             });
     }
 
@@ -472,7 +437,7 @@
                 
                 let tdTime = document.createElement('td');
                 tdTime.className = 'time-col';
-                tdTime.innerText = showLabel ? timeStr : '';
+                tdTime.innerHTML = `<div class="row-strut">${showLabel ? timeStr : '&nbsp;'}</div>`;
                 tr.appendChild(tdTime);
 
                 for (let day of DAYS) {
@@ -516,7 +481,6 @@
                 div.className = 'slot-event';
                 div.style.top = topPct + '%';
                 div.style.height = `calc(${heightPct}% + ${bordersCrossed}px)`;
-                
                 div.style.left = `calc(${slot.leftPct}% + 1px)`;
                 div.style.width = `calc(${slot.widthPct}% - 2px)`;
                 div.style.backgroundColor = slot.color;
