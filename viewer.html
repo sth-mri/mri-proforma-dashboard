@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MRI Proforma Viewer (Read-Only)</title>
+    <script>
+      (function() {
+          const currentSavedTheme = localStorage.getItem('theme');
+          const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          let themeToApply = 'light';
+          if (currentSavedTheme === 'dark' || (!currentSavedTheme && prefersDarkScheme)) themeToApply = 'dark';
+          document.documentElement.setAttribute('data-theme', themeToApply);
+      })();
+    </script>
+    <style>
+        /* --- BASE VARIABLES & THEMING --- */
+        :root { 
+            --bg: #f4f7fb; --surface: #ffffff; --text: #2d3748; --primary: #3182ce; --border: #e2e8f0; --hover: #ebf8ff;
+            --row-height: 45px;
+            --table-width: 100%;
+            --row-count: 52; 
+        }
+        [data-theme="dark"] { --bg: #1a202c; --surface: #2d3748; --text: #e2e8f0; --primary: #63b3ed; --border: #4a5568; --hover: #2c5282;}
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; transition: 0.3s; }
+        
+        /* --- NAVIGATION --- */
+        .nav-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+        .nav-btn { padding: 12px 20px; border: none; border-radius: 8px; background: var(--surface); color: var(--text); font-weight: bold; cursor: pointer; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: 0.2s; }
+        .nav-btn:hover, .nav-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .nav-btn.search-btn { background: #ed8936; color: white; border-color: #dd6b20; margin-left: auto; }
+        .nav-btn.print-btn { background: #38a169; color: white; border-color: #2f855a; }
+        .nav-btn.print-btn:hover { background: #276749; }
+        
+        .theme-btn { background: var(--surface); border: 1px solid var(--border); cursor: pointer; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; transition: 0.3s; margin-left: 5px; }
+        .theme-btn:hover { transform: scale(1.05); border-color: var(--primary); }
+        .sun-icon, .moon-icon { position: absolute; width: 20px; height: 20px; transition: 0.6s; }
+        .sun-icon { opacity: 1; transform: rotate(0deg) scale(1); color: #ecc94b; }
+        .moon-icon { opacity: 0; transform: rotate(90deg) scale(0.5); color: #ffffff; }
+        [data-theme="dark"] .sun-icon { opacity: 0; transform: rotate(-90deg) scale(0.5); color: #e53e3e; }
+        [data-theme="dark"] .moon-icon { opacity: 1; transform: rotate(0deg) scale(1); }
+        
+        /* --- VIEW CONTROLS (SLIDERS & RESOLUTION) --- */
+        .view-controls { display: flex; align-items: center; gap: 12px; background: var(--surface); padding: 8px 15px; border-radius: 8px; border: 1px solid var(--border); font-weight: bold; margin-left: auto; }
+        .view-controls input[type="range"] { width: 60px; cursor: pointer; }
+        .view-controls select { border: none; background: transparent; font-weight: bold; color: var(--primary); outline: none; cursor: pointer; font-size: 1em; }
+        .divider { width: 1px; height: 20px; background: var(--border); margin: 0 5px; }
+
+        /* --- HEADERS --- */
+        .scanner-header { background: var(--surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; }
+        .scanner-header h2 { margin: 0 0 10px 0; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+        .scanner-header p { margin: 4px 0; font-size: 0.9em; font-weight: bold; }
+        .readonly-badge { background: #e2e8f0; color: #4a5568; font-size: 0.5em; padding: 4px 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* --- OVERLAY CALENDAR GRID --- */
+        table { width: var(--table-width); margin: 0 auto; border-collapse: collapse; background: var(--surface); table-layout: fixed; transition: width 0.1s; }
+        th { background: var(--hover); position: sticky; top: 0; z-index: 50; text-align: center; padding: 8px; border: 1px solid var(--border); }
+        
+        th.time-header { width: 65px; text-align: left; }
+        th:not(.time-header) { width: calc((100% - 65px) / 7); }
+
+        tr { height: var(--row-height); transition: height 0.1s; } 
+        td { border: 1px solid var(--border); padding: 0; position: relative; vertical-align: top; }
+        
+        .time-col { font-weight: bold; background: var(--hover); text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+        
+        /* --- DYNAMIC SLOT EVENTS (READ-ONLY CURSORS) --- */
+        .slot-event { 
+            position: absolute; border-radius: 3px; padding: 4px 6px; box-sizing: border-box; 
+            overflow: hidden; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.2); 
+            cursor: default; /* REMOVED POINTER CURSOR */
+            text-align: left; display: flex; flex-direction: column; border: 1px solid rgba(0,0,0,0.1);
+        }
+        .slot-event:hover { 
+            z-index: 1000 !important; 
+            box-shadow: 0 6px 15px rgba(0,0,0,0.4); 
+            min-height: max-content !important; 
+            overflow: visible;
+        }
+
+        .time-badge { 
+            display: inline-block; width: fit-content; align-self: flex-start;
+            background: rgba(0, 0, 0, 0.75); color: #ffffff !important; 
+            padding: 1px 4px; border-radius: 3px 0 4px 0; 
+            font-size: 0.75em; font-weight: normal; 
+            font-family: 'Arial Narrow', 'Helvetica Condensed', sans-serif; font-stretch: condensed;
+            letter-spacing: -0.4px; margin: -4px 0 2px -6px; line-height: 1.1; box-shadow: 1px 1px 2px rgba(0,0,0,0.15);
+            white-space: nowrap;
+        }
+
+        .slot-event.short-slot { flex-direction: row; align-items: center; padding: 2px 4px; gap: 4px; }
+        .slot-event.short-slot .time-badge { margin: -2px 0 -2px -4px; padding: 1px 3px; font-size: 0.7em; }
+        .slot-event.short-slot > .slot-act { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+        .slot-event.short-slot > .slot-note { display: none; }
+        
+        .slot-event.short-slot:hover { flex-direction: column; align-items: flex-start; gap: 0; padding: 4px 6px; }
+        .slot-event.short-slot:hover .time-badge { margin: -4px 0 2px -6px; padding: 1px 4px; font-size: 0.75em; }
+
+        .warning-banner { background: #feebc8; color: #c05621; padding: 15px; border-radius: 8px; border-left: 5px solid #ed8936; margin-bottom: 20px; display: none; font-weight: bold; }
+
+        /* =========================================
+           A4 PORTRAIT PRINT OPTIMIZATION
+           ========================================= */
+        @media print {
+            @page { size: A4 portrait; margin: 5mm; }
+            html, body { height: 100vh !important; width: 100vw !important; margin: 0 !important; padding: 0 !important; background: white !important; color: black !important; overflow: hidden !important; }
+            .nav-bar, #monitoringWarning, .view-controls, .print-btn, .search-btn, .theme-btn { display: none !important; }
+            .scanner-header { height: 4vh !important; border: none !important; padding: 0 !important; margin: 0 0 1mm 0 !important; text-align: center; }
+            .scanner-header h2 { font-size: 14pt !important; margin: 0 !important; line-height: 1.1 !important; }
+            .scanner-header p { font-size: 9pt !important; margin: 0 !important; line-height: 1.1 !important; }
+            .readonly-badge { display: none !important; }
+            #gridContainer { height: auto !important; max-height: none !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; }
+            table { width: 100% !important; height: 240mm !important; max-height: 240mm !important; table-layout: fixed; border-collapse: collapse; margin: 0 !important; border: 2px solid #000 !important; }
+            tr { height: calc(240mm / var(--row-count)) !important; overflow: hidden !important; }
+            th.time-header { width: 35px !important; }
+            th:not(.time-header) { width: calc((100% - 35px) / 7) !important; }
+            th { position: static !important; font-size: 8.5pt !important; padding: 1px !important; background-color: #f0f0f0 !important; color: #000 !important; height: 4mm !important; border: 1px solid #000 !important; }
+            td { border: 1px solid #000 !important; padding: 0 !important; vertical-align: top !important; box-sizing: border-box !important;}
+            .time-col { background-color: #f0f0f0 !important; color: #000 !important; font-size: 8pt !important; border: 1px solid #000 !important; vertical-align: top !important; padding: 1px 3px !important; text-align: left !important; line-height: 1 !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+            .slot-event { box-shadow: none !important; border: 1px solid rgba(0,0,0,0.8) !important; padding: 1px 2px !important; box-sizing: border-box !important;}
+            .time-badge { display: none !important; } 
+            .slot-event span.slot-act { font-size: 8.5pt !important; font-weight: bold !important; line-height: 1 !important; white-space: normal !important; display: block; margin-bottom: 1px; }
+            .slot-event div.slot-note { font-size: 8pt !important; font-weight: normal !important; display: block !important; line-height: 1 !important; margin-top: 0 !important; }
+            .slot-event.short-slot { flex-direction: row !important; white-space: nowrap !important; align-items: center; }
+            .slot-event.short-slot > .slot-note { display: none !important; }
+            .slot-event.short-slot span.slot-act { white-space: nowrap !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- --- NAVIGATION BAR --- -->
+    <div class="nav-bar" id="navBar">
+        <button class="nav-btn" onclick="loadScanner('HM1')">HM1</button>
+        <button class="nav-btn" onclick="loadScanner('HM2')">HM2</button>
+        <button class="nav-btn" onclick="loadScanner('HM3')">HM3</button>
+        <button class="nav-btn" onclick="loadScanner('HM4')">HM4</button>
+        <button class="nav-btn" onclick="loadScanner('NM1')">NM1</button>
+        <button class="nav-btn" onclick="loadScanner('NM2')">NM2</button>
+        <button class="nav-btn" onclick="loadScanner('NM3')">NM3</button>
+        <button class="nav-btn" onclick="loadScanner('WM')">WM</button>
+        
+        <div class="res-container">
+            <div title="Adjust Row Height" style="display:flex; align-items:center; gap:5px;">
+                ↕️ <input type="range" id="rowHeightSlider" min="22" max="60" value="45" oninput="updateGridSizes()">
+            </div>
+            <div title="Adjust Column Width" style="display:flex; align-items:center; gap:5px;">
+                ↔️ <input type="range" id="colWidthSlider" min="50" max="100" value="100" oninput="updateGridSizes()">
+            </div>
+            <div class="divider"></div>
+            <div>
+                Res:
+                <select id="resSelect" onchange="renderGrid()">
+                    <option value="5">5 Mins</option>
+                    <option value="10">10 Mins</option>
+                    <option value="15" selected>15 Mins</option>
+                    <option value="30">30 Mins</option>
+                    <option value="60">1 Hour</option>
+                </select>
+            </div>
+        </div>
+        
+        <button class="nav-btn search-btn" onclick="openSearch()">🔍 Summary Search</button>
+        <button class="nav-btn print-btn" onclick="printProforma()">🖨️ Print A4</button>
+        
+        <button type="button" class="theme-btn" onclick="toggleTheme()" title="Toggle Dark Mode">
+            <svg class="sun-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            <svg class="moon-icon" viewBox="0 0 24 24" fill="currentColor"><mask id="moon-mask"><rect x="0" y="0" width="24" height="24" fill="white" /><circle cx="15.5" cy="14.5" r="2.5" fill="black" /><circle cx="8.5" cy="9.5" r="1.8" fill="black" /></mask><circle cx="12" cy="12" r="10" mask="url(#moon-mask)" /></svg>
+        </button>
+    </div>
+
+    <div id="headerArea" class="scanner-header" style="display:none;"></div>
+    <div id="monitoringWarning" class="warning-banner">⚠️ PATIENT MONITORING REQUIRED: Showing grouped results for Pacemakers, GA, and Cardiac Stress.</div>
+
+    <div id="gridContainer" style="overflow-x: auto; max-height: 75vh;">
+        <table id="scheduleTable">
+            <thead>
+                <tr>
+                    <th class="time-header">Time</th><th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th><th>Saturday</th><th>Sunday</th>
+                </tr>
+            </thead>
+            <tbody id="scheduleBody"></tbody>
+        </table>
+    </div>
+
+<script>
+    // ==========================================
+    // ⚠️ PASTE YOUR DEPLOYED GOOGLE WEB APP URL HERE:
+    // ==========================================
+    const GAS_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
+
+    async function callBackend(action, payload = null) {
+        try {
+            let response = await fetch(GAS_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: action, payload: payload }),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
+            });
+            let json = await response.json();
+            if (json.status === "error") throw new Error(json.message);
+            return json.data;
+        } catch (error) {
+            console.error("API Error:", error);
+            throw error;
+        }
+    }
+
+    const START_MINS = 450; 
+    const TOTAL_DAY_MINS = 780; 
+    const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    
+    let currentScanner = '';
+    let currentSlots = [];
+    let currentHeaders = [];
+    let currentDayInfo = {}; 
+
+    function formatTime(mins) {
+        let h = Math.floor(mins/60); let m = mins%60;
+        return (h<10?'0'+h:h) + ':' + (m<10?'0'+m:m);
+    }
+    function timeToMins(timeStr) {
+        if (!timeStr) return 0;
+        let p = timeStr.split(':');
+        return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+    }
+
+    function updateGridSizes() {
+        let rowH = document.getElementById('rowHeightSlider').value;
+        let colW = document.getElementById('colWidthSlider').value;
+        document.documentElement.style.setProperty('--row-height', rowH + 'px');
+        document.documentElement.style.setProperty('--table-width', colW + '%');
+        renderGrid();
+    }
+
+    window.onload = () => {
+        loadScanner('HM1');
+
+        // Auto-refresh data silently every 60 seconds
+        setInterval(() => {
+            if (currentScanner) {
+                callBackend('getScannerSchedule', currentScanner)
+                    .then(data => {
+                        currentHeaders = data.headers;
+                        currentSlots = data.slots;
+                        currentDayInfo = data.dayInfo;
+                        renderGrid();
+                    });
+            }
+        }, 60000); 
+    };
+
+    function toggleTheme() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    }
+
+    function printProforma() {
+        let oldRes = document.getElementById('resSelect').value;
+        document.getElementById('resSelect').value = "15";
+        renderGrid();
+        
+        setTimeout(() => {
+            window.print();
+            document.getElementById('resSelect').value = oldRes;
+            renderGrid();
+        }, 300);
+    }
+
+    function loadScanner(scanner) {
+        currentScanner = scanner;
+        document.getElementById('monitoringWarning').style.display = 'none';
+        
+        document.querySelectorAll('.nav-btn').forEach(b => {
+            b.classList.remove('active');
+            if (b.innerText.trim() === scanner) b.classList.add('active');
+        });
+
+        document.getElementById('headerArea').style.display = 'none';
+        document.getElementById('scheduleBody').innerHTML = '<tr><td colspan="8" style="padding:20px;">Loading data from Google Sheet
