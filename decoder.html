@@ -91,7 +91,7 @@
   
   /* LOADING & SYNC STATES */
   #loadingState { text-align: center; padding: 50px; font-size: 1.5em; font-weight: bold; color: var(--primary); display: none; }
-  #errorState { text-align: center; padding: 50px; font-size: 1.2em; font-weight: bold; color: #e53e3e; display: none; }
+  #errorState { text-align: center; padding: 50px; font-size: 1.2em; font-weight: bold; color: #e53e3e; display: none; white-space: pre-wrap;}
   
   .sync-badge {
       position: fixed; bottom: 20px; right: 20px; background: var(--surface-color); color: var(--text-color);
@@ -160,6 +160,7 @@
     <ul id="index-list"></ul>
   </div>
 
+  <!-- PATIENT MONITORING WARNING -->
   <div id="monitoring-warning" class="warning-banner" style="display: none;">
     <svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="2" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
     <div>
@@ -180,7 +181,7 @@
 
 <script>
   // ==========================================
-  // CONFIGURATION: PASTE YOUR DEPLOYED URL HERE
+  // INJECTED GAS URL
   // ==========================================
   const GAS_URL = "https://script.google.com/macros/s/AKfycbzuv2hdxJSRhWS_TWJ3gq5q4HQKcyB4O1PHlIL_tp5tfq9VhPoBNWbhKlMaZM6ABkBo/exec";
 
@@ -192,17 +193,28 @@
               method: 'POST',
               redirect: 'follow',
               body: JSON.stringify({ action: action, payload: payload }),
-              headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' } // text/plain prevents CORS errors
           });
+          
           let json = await response.json();
           if (json.status === "error") throw new Error(json.message);
           return json.data;
       } catch (error) {
+          console.error("API Error:", error);
           throw error;
       }
   }
 
-  const MONITORING_GROUPS = ['PPM (Pacemakers)', 'Cardiac (Stress/Super)', 'GA / XGA'];
+  // --- CONSTANTS ---
+  // Triggers on the new, specific Activity names
+  const MONITORING_GROUPS = [
+      'Cardiac - STRESS or SUPERVISED', 
+      'GA', 
+      'PPM (Pacemakers)', 
+      'PPM 31/62', 
+      'PPM Urgent Inpatient'
+  ];
+  
   const DAY_ORDER = { "Monday":1, "Tuesday":2, "Wednesday":3, "Thursday":4, "Friday":5, "Saturday":6, "Sunday":7 };
 
   window.addEventListener('DOMContentLoaded', () => {
@@ -252,7 +264,7 @@
                   loadingState.style.display = 'none';
                   const errDiv = document.getElementById('errorState');
                   errDiv.style.display = 'block';
-                  errDiv.innerText = "Error loading data: " + err.message;
+                  errDiv.innerText = "Error loading data: " + err.message + "\nMake sure you pasted your Web App URL into the GAS_URL variable at the top of the decoder script!";
               } else {
                   showSyncBadge("⚠️ Offline (Showing Cached Data)", false);
                   setTimeout(hideSyncBadge, 4000);
@@ -274,9 +286,11 @@
       return 'scan-' + name.toLowerCase().replace(/[^a-z0-9]/g, '');
   }
 
+  // --- BUILD THE UI DYNAMICALLY ---
   function buildUI(allSlots) {
       let activities = {};
 
+      // 1. Group all slots by Activity -> Scanner -> Day
       allSlots.forEach(slot => {
           if (!activities[slot.activity]) activities[slot.activity] = { color: slot.color, scanners: {} };
           if (!activities[slot.activity].scanners[slot.scanner]) activities[slot.activity].scanners[slot.scanner] = [];
@@ -290,6 +304,7 @@
       indexList.innerHTML = '';
       scansContainer.innerHTML = '';
       
+      // Sort Activities Alphabetically
       const sortedActivityNames = Object.keys(activities).sort();
 
       sortedActivityNames.forEach(actName => {
@@ -297,22 +312,33 @@
           const sectionId = sanitizeId(actName);
           const isMonitoring = MONITORING_GROUPS.includes(actName);
 
+          // Build Index Item
           let li = document.createElement('li');
           li.innerHTML = `<a href="#${sectionId}"><span class="color-dot" style="background-color:${actData.color}; border-color:${actData.color}"></span>${actName}</a>`;
-          if (isMonitoring) li.querySelector('a').addEventListener('click', (e) => { e.preventDefault(); activateMonitoringView(); });
+          
+          if (isMonitoring) {
+              li.querySelector('a').addEventListener('click', (e) => {
+                  e.preventDefault(); activateMonitoringView();
+              });
+          }
           indexList.appendChild(li);
 
+          // Build Scan Section Item
           let section = document.createElement('div');
           section.id = sectionId;
           section.className = 'scan-section';
+          // Subtle tint based on cell color
           section.style.borderLeftColor = actData.color;
           section.style.backgroundColor = (document.documentElement.getAttribute('data-theme') === 'dark') ? 'var(--surface-color)' : actData.color + '15'; 
           
           let html = `<h3><span class="color-dot" style="background-color:${actData.color}; border-color:${actData.color}"></span> ${actName}</h3><ul>`;
 
+          // Sort Scanners
           const sortedScanners = Object.keys(actData.scanners).sort();
           sortedScanners.forEach(scanner => {
               let scannerSlots = actData.scanners[scanner];
+              
+              // Group by Day
               let byDay = {};
               scannerSlots.forEach(s => {
                   if(!byDay[s.day]) byDay[s.day] = [];
@@ -339,9 +365,11 @@
                   document.getElementById('index-top').scrollIntoView({behavior: 'smooth', block: 'start'});
               });
           }
+
           scansContainer.appendChild(section);
       });
 
+      // Show UI
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('index-top').style.display = 'block';
       document.getElementById('scans-container').style.display = 'block';
@@ -350,17 +378,22 @@
       performSearch();
   }
 
+  // --- MONITORING VIEW ACTIVATOR ---
   function activateMonitoringView() {
-      resetSearch(true); 
+      resetSearch(true); // reset silently
       document.getElementById('reset-btn').style.display = 'block';
-      document.getElementById('monitoring-warning').style.display = 'flex';
+      
+      const warningBanner = document.getElementById('monitoring-warning');
+      warningBanner.style.display = 'flex';
 
       const targetIds = MONITORING_GROUPS.map(name => sanitizeId(name));
 
+      // Filter Sections
       document.querySelectorAll('.scan-section').forEach(sec => {
           sec.style.display = targetIds.includes(sec.id) ? '' : 'none';
       });
 
+      // Filter Index
       document.querySelectorAll('.index li').forEach(indexItem => {
           const targetId = indexItem.querySelector('a').getAttribute('href').substring(1);
           indexItem.style.display = targetIds.includes(targetId) ? '' : 'none';
@@ -370,9 +403,12 @@
       status.style.color = '#dd6b20';
       status.innerHTML = `Showing Monitoring Group. Please verify availability across these lists.`;
 
-      setTimeout(() => document.getElementById('monitoring-warning').scrollIntoView({behavior: 'smooth', block: 'start'}), 50);
+      setTimeout(() => {
+          warningBanner.scrollIntoView({behavior: 'smooth', block: 'start'});
+      }, 50);
   }
 
+  // --- CORE SEARCH LOGIC ---
   function parseTime(timeStr) {
       if (!timeStr) return 0;
       const parts = timeStr.split(':');
@@ -382,10 +418,21 @@
   function getDaysFromText(text) {
       let t = text.toLowerCase();
       let days = new Set();
-      if (t.includes('mon')) days.add('mon'); if (t.includes('tue')) days.add('tue');
-      if (t.includes('wed')) days.add('wed'); if (t.includes('thu')) days.add('thu');
-      if (t.includes('fri')) days.add('fri'); if (t.includes('sat')) days.add('sat');
+      
+      if (t.includes('daily') || t.includes('everyday') || t.includes('mon-sun')) {
+          return new Set(['mon','tue','wed','thu','fri','sat','sun']);
+      }
+      if (t.includes('mon-fri') || t.includes('monday-friday') || t.includes('mon - fri')) {
+          ['mon','tue','wed','thu','fri'].forEach(d => days.add(d));
+      }
+      if (t.includes('mon')) days.add('mon');
+      if (t.includes('tue')) days.add('tue');
+      if (t.includes('wed')) days.add('wed');
+      if (t.includes('thu')) days.add('thu');
+      if (t.includes('fri')) days.add('fri');
+      if (t.includes('sat')) days.add('sat');
       if (t.includes('sun')) days.add('sun');
+      
       return days;
   }
 
@@ -393,14 +440,26 @@
       let ranges = [];
       const rangeRegex = /(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/g;
       let match;
+      
       while ((match = rangeRegex.exec(text)) !== null) {
           ranges.push({ start: parseTime(match[1]), end: parseTime(match[2]) });
+      }
+      
+      const timeRegex = /\b(\d{1,2}:\d{2})\b/g;
+      while ((match = timeRegex.exec(text)) !== null) {
+          let t = parseTime(match[1]);
+          let inRange = ranges.some(r => t >= r.start && t <= r.end);
+          if (!inRange) {
+              ranges.push({ start: t, end: t + 30 });
+          }
       }
       return ranges;
   }
 
   function performSearch() {
-      document.getElementById('monitoring-warning').style.display = 'none';
+      // Hide Monitoring View if standard search is executed
+      const warningBanner = document.getElementById('monitoring-warning');
+      if (warningBanner) warningBanner.style.display = 'none';
 
       const scannerFilter = document.getElementById('search-scanner').value;
       const dayFilter = document.getElementById('search-day').value;
@@ -416,7 +475,9 @@
       const isDefault = (scannerFilter === 'ALL' && dayFilter === 'all' && startVal === '07:00' && endVal === '21:00');
       document.getElementById('reset-btn').style.display = isDefault ? 'none' : 'block';
 
-      let visibleSections = 0; let visibleItems = 0;
+      let visibleSections = 0;
+      let visibleItems = 0;
+
       const sections = document.querySelectorAll('.scan-section');
       
       sections.forEach(section => {
@@ -428,30 +489,39 @@
               if (!strongTag) return;
               
               const scannerText = strongTag.textContent.replace(':', '').trim();
+              const htmlContent = item.innerHTML; 
               
-              const chunks = item.innerHTML.split(';');
+              const chunks = htmlContent.split(';');
               let itemMatches = false;
 
               for (let chunk of chunks) {
                   let text = chunk.replace(/<[^>]*>?/gm, ''); 
+                  
                   let scannerMatch = (scannerFilter === 'ALL' || scannerText.includes('All Scanners') || scannerText.includes(scannerFilter));
+                  
                   let days = getDaysFromText(text);
-                  let dayMatch = (dayFilter === 'all' || days.size === 0 || days.has(dayFilter));
+                  let dayMatch = false;
+                  if (dayFilter === 'all' || days.size === 0 || days.has(dayFilter)) {
+                      dayMatch = true;
+                  }
                   
                   let ranges = getRanges(text);
                   let timeMatch = false;
                   
-                  if (ranges.length === 0) timeMatch = true; 
-                  else {
+                  if (ranges.length === 0) {
+                      timeMatch = true; 
+                  } else {
                       for (let r of ranges) {
                           if (Math.max(searchStart, r.start) < Math.min(searchEnd, r.end)) {
-                              timeMatch = true; break;
+                              timeMatch = true;
+                              break;
                           }
                       }
                   }
                   
                   if (scannerMatch && dayMatch && timeMatch) {
-                      itemMatches = true; break; 
+                      itemMatches = true;
+                      break; 
                   }
               }
 
@@ -459,18 +529,26 @@
                   item.style.display = '';
                   sectionHasVisibleItem = true;
                   visibleItems++;
-              } else item.style.display = 'none';
+              } else {
+                  item.style.display = 'none';
+              }
           });
 
           if (sectionHasVisibleItem) {
               section.style.display = '';
               visibleSections++;
-          } else section.style.display = 'none';
+          } else {
+              section.style.display = 'none';
+          }
       });
 
-      document.querySelectorAll('.index li').forEach(indexItem => indexItem.style.display = '');
+      // Keep Index Fully Visible during standard searches
+      document.querySelectorAll('.index li').forEach(indexItem => {
+          indexItem.style.display = '';
+      });
 
       const status = document.getElementById('search-status');
+      
       if (isDefault) {
           status.style.color = 'var(--text-muted)';
           status.innerHTML = `Showing all available slots. Modify filters above to search.`;
@@ -496,6 +574,7 @@
       document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
       localStorage.setItem('theme', isDark ? 'light' : 'dark');
       
+      // Update section backgrounds slightly to match theme
       document.querySelectorAll('.scan-section').forEach(sec => {
           if(!isDark) { sec.style.backgroundColor = 'var(--surface-color)'; }
           else { 
@@ -505,5 +584,6 @@
       });
   }
 </script>
+
 </body>
 </html>
