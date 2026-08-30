@@ -140,11 +140,11 @@
       </div>
       <div class="control-group">
         <label>Time Between</label>
-        <input type="time" id="search-start" value="07:00" onchange="performSearch()" oninput="performSearch()">
+        <input type="time" id="search-start" value="07:30" onchange="performSearch()" oninput="performSearch()">
       </div>
       <div class="control-group">
         <label>And</label>
-        <input type="time" id="search-end" value="21:00" onchange="performSearch()" oninput="performSearch()">
+        <input type="time" id="search-end" value="20:30" onchange="performSearch()" oninput="performSearch()">
       </div>
       <button type="button" id="reset-btn" class="reset-btn" onclick="resetSearch()">Clear Filters</button>
     </div>
@@ -466,13 +466,13 @@
       const startInput = document.getElementById('search-start').value;
       const endInput = document.getElementById('search-end').value;
 
-      const startVal = startInput ? startInput.substring(0, 5) : "07:00";
-      const endVal = endInput ? endInput.substring(0, 5) : "21:00";
+      const startVal = startInput ? startInput.substring(0, 5) : "07:30";
+      const endVal = endInput ? endInput.substring(0, 5) : "20:30";
 
       const searchStart = parseTime(startVal);
       const searchEnd = parseTime(endVal);
 
-      const isDefault = (scannerFilter === 'ALL' && dayFilter === 'all' && startVal === '07:00' && endVal === '21:00');
+      const isDefault = (scannerFilter === 'ALL' && dayFilter === 'all' && startVal === '07:30' && endVal === '20:30');
       document.getElementById('reset-btn').style.display = isDefault ? 'none' : 'block';
 
       let visibleSections = 0;
@@ -564,8 +564,8 @@
   function resetSearch(silent = false) {
       document.getElementById('search-scanner').value = 'ALL';
       document.getElementById('search-day').value = 'all';
-      document.getElementById('search-start').value = '07:00';
-      document.getElementById('search-end').value = '21:00';
+      document.getElementById('search-start').value = '07:30';
+      document.getElementById('search-end').value = '20:30';
       if(!silent) performSearch(); 
   }
 
