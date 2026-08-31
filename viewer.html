@@ -18,11 +18,13 @@
             --bg: #f4f7fb; --surface: #ffffff; --text: #2d3748; --primary: #3182ce; --border: #e2e8f0; --hover: #ebf8ff;
             --row-height: 45px;
             --table-width: 100%;
+            --font-scale: 1; /* Dynamic Font Scaling */
             --row-count: 52; 
         }
         [data-theme="dark"] { --bg: #1a202c; --surface: #2d3748; --text: #e2e8f0; --primary: #63b3ed; --border: #4a5568; --hover: #2c5282;}
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; transition: 0.3s; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; transition: 0.3s; overflow-x: hidden; }
         
+        /* --- NAVIGATION --- */
         .nav-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
         .nav-btn { padding: 12px 20px; border: none; border-radius: 8px; background: var(--surface); color: var(--text); font-weight: bold; cursor: pointer; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: 0.2s; }
         .nav-btn:hover, .nav-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
@@ -38,16 +40,19 @@
         [data-theme="dark"] .sun-icon { opacity: 0; transform: rotate(-90deg) scale(0.5); color: #e53e3e; }
         [data-theme="dark"] .moon-icon { opacity: 1; transform: rotate(0deg) scale(1); }
         
-        .view-controls { display: flex; align-items: center; gap: 12px; background: var(--surface); padding: 8px 15px; border-radius: 8px; border: 1px solid var(--border); font-weight: bold; margin-left: auto; }
+        /* --- VIEW CONTROLS (INLINE SLIDERS & RESOLUTION) --- */
+        .view-controls { display: flex; align-items: center; gap: 12px; background: var(--surface); padding: 8px 15px; border-radius: 8px; border: 1px solid var(--border); font-weight: bold; margin-left: auto; flex-wrap: nowrap; white-space: nowrap; overflow-x: auto; }
         .view-controls input[type="range"] { width: 60px; cursor: pointer; }
         .view-controls select { border: none; background: transparent; font-weight: bold; color: var(--primary); outline: none; cursor: pointer; font-size: 1em; }
         .divider { width: 1px; height: 20px; background: var(--border); margin: 0 5px; }
 
+        /* --- HEADERS --- */
         .scanner-header { background: var(--surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; }
         .scanner-header h2 { margin: 0 0 10px 0; color: var(--primary); display: flex; align-items: center; gap: 10px; }
         .scanner-header p { margin: 4px 0; font-size: 0.9em; font-weight: bold; }
         .readonly-badge { background: #e2e8f0; color: #4a5568; font-size: 0.5em; padding: 4px 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
 
+        /* --- OVERLAY CALENDAR GRID --- */
         table { width: var(--table-width); margin: 0 auto; border-collapse: collapse; background: var(--surface); table-layout: fixed; transition: width 0.1s; }
         th { background: var(--hover); position: sticky; top: 0; z-index: 50; text-align: center; padding: 8px; border: 1px solid var(--border); }
         th.time-header { width: 65px; text-align: left; }
@@ -55,27 +60,48 @@
 
         tr { height: var(--row-height); transition: height 0.1s; } 
         td { border: 1px solid var(--border); padding: 0; position: relative; vertical-align: top; }
-        .grid-cell { cursor: default; transition: 0.2s; }
+        .grid-cell { cursor: default; transition: 0.2s; } /* Read only cursor */
         .grid-cell:hover { background: var(--hover); }
         
         .time-col { background: var(--hover); border-bottom: 1px solid var(--border); padding: 0 !important; vertical-align: top; }
         .row-strut { height: var(--row-height); min-height: var(--row-height); max-height: var(--row-height); box-sizing: border-box; display: flex; align-items: flex-start; justify-content: left; padding-top: 4px; padding-left: 6px; font-weight: bold; overflow: hidden; }
         
-        .slot-event { position: absolute; border-radius: 3px; padding: 4px 6px; box-sizing: border-box; overflow: hidden; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: default; text-align: left; display: flex; flex-direction: column; border: 1px solid rgba(0,0,0,0.1); }
-        .slot-event:hover { z-index: 1000 !important; box-shadow: 0 6px 15px rgba(0,0,0,0.4); min-height: max-content !important; overflow: visible; }
+        /* --- DYNAMIC SLOT EVENTS --- */
+        .slot-event { 
+            position: absolute; border-radius: 3px; padding: 4px 6px; box-sizing: border-box; 
+            overflow: hidden; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: default; 
+            text-align: left; display: flex; flex-direction: column; border: 1px solid rgba(0,0,0,0.1);
+        }
+        .slot-event:hover { 
+            z-index: 1000 !important; 
+            box-shadow: 0 6px 15px rgba(0,0,0,0.4); 
+            min-height: max-content !important; 
+            overflow: visible;
+        }
 
-        .time-badge { display: inline-block; width: fit-content; align-self: flex-start; background: rgba(0, 0, 0, 0.75); color: #ffffff !important; padding: 1px 4px; border-radius: 3px 0 4px 0; font-size: 0.75em; font-weight: normal; font-family: 'Arial Narrow', 'Helvetica Condensed', sans-serif; font-stretch: condensed; letter-spacing: -0.4px; margin: -4px 0 2px -6px; line-height: 1.1; box-shadow: 1px 1px 2px rgba(0,0,0,0.15); white-space: nowrap; }
+        .time-badge { 
+            display: inline-block; width: fit-content; align-self: flex-start;
+            background: rgba(0, 0, 0, 0.75); color: #ffffff !important; 
+            padding: 1px 4px; border-radius: 3px 0 4px 0; 
+            font-size: calc(0.75em * var(--font-scale, 1)); font-weight: normal; 
+            font-family: 'Arial Narrow', 'Helvetica Condensed', sans-serif; font-stretch: condensed;
+            letter-spacing: -0.4px; margin: -4px 0 2px -6px; line-height: 1.1; box-shadow: 1px 1px 2px rgba(0,0,0,0.15);
+            white-space: nowrap;
+        }
 
         .slot-event.short-slot { flex-direction: row; align-items: center; padding: 2px 4px; gap: 4px; }
-        .slot-event.short-slot .time-badge { margin: -2px 0 -2px -4px; padding: 1px 3px; font-size: 0.7em; }
+        .slot-event.short-slot .time-badge { margin: -2px 0 -2px -4px; padding: 1px 3px; font-size: calc(0.7em * var(--font-scale, 1)); }
         .slot-event.short-slot > .slot-act { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
         .slot-event.short-slot > .slot-note { display: none; }
         
         .slot-event.short-slot:hover { flex-direction: column; align-items: flex-start; gap: 0; padding: 4px 6px; }
-        .slot-event.short-slot:hover .time-badge { margin: -4px 0 2px -6px; padding: 1px 4px; font-size: 0.75em; }
+        .slot-event.short-slot:hover .time-badge { margin: -4px 0 2px -6px; padding: 1px 4px; font-size: calc(0.75em * var(--font-scale, 1)); }
 
         .warning-banner { background: #feebc8; color: #c05621; padding: 15px; border-radius: 8px; border-left: 5px solid #ed8936; margin-bottom: 20px; display: none; font-weight: bold; }
 
+        /* =========================================
+           A4 PORTRAIT PRINT OPTIMIZATION
+           ========================================= */
         @media print {
             @page { size: A4 portrait; margin: 5mm; }
             html, body { height: 100vh !important; width: 100vw !important; margin: 0 !important; padding: 0 !important; background: white !important; color: black !important; overflow: hidden !important; }
@@ -92,14 +118,16 @@
             th.time-header { width: 35px !important; }
             th:not(.time-header) { width: calc((100% - 35px) / 7) !important; }
             th { position: static !important; font-size: 8.5pt !important; padding: 1px !important; background-color: #f0f0f0 !important; color: #000 !important; height: 4mm !important; border: 1px solid #000 !important; }
-            td { border: 1px solid #000 !important; padding: 0 !important; }
-            .time-col { background-color: #f0f0f0 !important; color: #000 !important; font-size: 8pt !important; border: 1px solid #000 !important; }
+            td { border: 1px solid #000 !important; padding: 0 !important; vertical-align: top !important; box-sizing: border-box !important;}
+            .time-col { background-color: #f0f0f0 !important; color: #000 !important; font-size: 8pt !important; border: 1px solid #000 !important; vertical-align: top !important; padding: 1px 3px !important; text-align: left !important; line-height: 1 !important; }
             .row-strut { padding-top: 1px !important; padding-left: 2px !important; }
-            
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
             
             .slot-event { box-shadow: none !important; border: 1px solid rgba(0,0,0,0.8) !important; padding: 1px 2px !important; box-sizing: border-box !important;}
             .time-badge { display: none !important; } 
+            
+            /* PRINT OVERRIDE: Ignores slider scaling completely */
+            :root { --font-scale: 1 !important; }
             .slot-event span.slot-act { font-size: 8.5pt !important; font-weight: bold !important; line-height: 1 !important; white-space: normal !important; display: block; margin-bottom: 1px; }
             .slot-event div.slot-note { font-size: 8pt !important; font-weight: normal !important; display: block !important; line-height: 1 !important; margin-top: 0 !important; margin-left: 4px !important; }
             
@@ -110,6 +138,7 @@
     </style>
 </head>
 <body>
+    <!-- --- NAVIGATION BAR --- -->
     <div class="nav-bar" id="navBar">
         <button class="nav-btn" onclick="loadScanner('HM1')">HM1</button>
         <button class="nav-btn" onclick="loadScanner('HM2')">HM2</button>
@@ -120,15 +149,19 @@
         <button class="nav-btn" onclick="loadScanner('NM3')">NM3</button>
         <button class="nav-btn" onclick="loadScanner('WM')">WM</button>
         
-        <div class="res-container">
+        <!-- Size Sliders & Resolution Controls -->
+        <div class="view-controls">
             <div title="Adjust Row Height" style="display:flex; align-items:center; gap:5px;">
                 ↕️ <input type="range" id="rowHeightSlider" min="22" max="60" value="45" oninput="updateGridSizes()">
             </div>
             <div title="Adjust Column Width" style="display:flex; align-items:center; gap:5px;">
                 ↔️ <input type="range" id="colWidthSlider" min="50" max="100" value="100" oninput="updateGridSizes()">
             </div>
+            <div title="Adjust Font Size" style="display:flex; align-items:center; gap:5px;">
+                <span style="font-weight:bold; font-size:1.1em;">A</span> <input type="range" id="fontSizeSlider" min="60" max="150" value="100" oninput="updateGridSizes()">
+            </div>
             <div class="divider"></div>
-            <div>
+            <div style="display:flex; align-items:center; gap:5px;">
                 Res:
                 <select id="resSelect" onchange="renderGrid()">
                     <option value="5">5 Mins</option>
@@ -142,6 +175,7 @@
         
         <button class="nav-btn search-btn" onclick="openSearch()">🔍 Summary Search</button>
         <button class="nav-btn print-btn" onclick="printProforma()">🖨️ Print A4</button>
+        
         <button type="button" class="theme-btn" onclick="toggleTheme()" title="Toggle Dark Mode">
             <svg class="sun-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
             <svg class="moon-icon" viewBox="0 0 24 24" fill="currentColor"><mask id="moon-mask"><rect x="0" y="0" width="24" height="24" fill="white" /><circle cx="15.5" cy="14.5" r="2.5" fill="black" /><circle cx="8.5" cy="9.5" r="1.8" fill="black" /></mask><circle cx="12" cy="12" r="10" mask="url(#moon-mask)" /></svg>
@@ -204,11 +238,16 @@
         return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
     }
 
+    // CSS VARIABLES FOR SCALING
     function updateGridSizes() {
         let rowH = document.getElementById('rowHeightSlider').value;
         let colW = document.getElementById('colWidthSlider').value;
+        let fontS = document.getElementById('fontSizeSlider').value;
+        
         document.documentElement.style.setProperty('--row-height', rowH + 'px');
         document.documentElement.style.setProperty('--table-width', colW + '%');
+        document.documentElement.style.setProperty('--font-scale', (fontS / 100));
+        
         renderGrid();
     }
 
@@ -238,12 +277,11 @@
         let oldRes = document.getElementById('resSelect').value;
         document.getElementById('resSelect').value = "15";
         renderGrid();
-        
         setTimeout(() => {
             window.print();
             document.getElementById('resSelect').value = oldRes;
             renderGrid();
-        }, 300);
+        }, 500);
     }
 
     function loadScanner(scanner) {
@@ -277,6 +315,7 @@
 
             let displayResMins = parseInt(document.getElementById('resSelect').value);
             let rowCount = TOTAL_DAY_MINS / displayResMins;
+            let rowHeightPx = parseInt(document.getElementById('rowHeightSlider').value);
             
             document.documentElement.style.setProperty('--row-count', rowCount);
             
@@ -352,14 +391,16 @@
                 div.style.width = `calc(${slot.widthPct}% - 2px)`;
                 div.style.backgroundColor = slot.color;
                 
-                if (durationMins <= 10) div.classList.add('short-slot');
+                let approxHeightPx = (durationMins / displayResMins) * rowHeightPx;
+                if (approxHeightPx < 32) div.classList.add('short-slot');
                 
                 let actFmt = slot.actFormat || { color: "#000000", size: 12, bold: true, italic: false };
                 let noteFmt = slot.noteFormat || { color: "#ff0000", size: 12, bold: false, italic: false };
                 
+                // MULTIPLY FONTS BY THE DYNAMIC CSS VAR(--font-scale)
                 let timeHtml = `<div class="time-badge">${slot.startTime} - ${slot.endTime}</div>`;
-                let actHtml = `<span class="slot-act" style="color:${actFmt.color}; font-size:${actFmt.size}pt; font-weight:${actFmt.bold?'bold':'normal'}; font-style:${actFmt.italic?'italic':'normal'}; line-height: 1.1;">${slot.activity}</span>`;
-                let noteHtml = slot.note ? `<div class="slot-note" style="color:${noteFmt.color}; font-size:${noteFmt.size}pt; font-weight:${noteFmt.bold?'bold':'normal'}; font-style:${noteFmt.italic?'italic':'normal'}; white-space:pre-wrap; margin-top:2px; line-height: 1.1;">${slot.note}</div>` : '';
+                let actHtml = `<span class="slot-act" style="color:${actFmt.color}; font-size:calc(${actFmt.size}pt * var(--font-scale, 1)); font-weight:${actFmt.bold?'bold':'normal'}; font-style:${actFmt.italic?'italic':'normal'}; line-height: 1.1;">${slot.activity}</span>`;
+                let noteHtml = slot.note ? `<div class="slot-note" style="color:${noteFmt.color}; font-size:calc(${noteFmt.size}pt * var(--font-scale, 1)); font-weight:${noteFmt.bold?'bold':'normal'}; font-style:${noteFmt.italic?'italic':'normal'}; white-space:pre-wrap; margin-top:2px; line-height: 1.1;">${slot.note}</div>` : '';
                 
                 div.innerHTML = timeHtml + actHtml + noteHtml;
                 tdAnchor.appendChild(div);
